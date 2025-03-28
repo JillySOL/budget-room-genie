@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/ui-custom/Logo";
 import PageContainer from "@/components/layout/PageContainer";
-import { ArrowRight, PaintBucket, Hammer, Lightbulb, Rocket, Search, ToolBox, Check, Sparkles } from "lucide-react";
+import { ArrowRight, PaintBucket, Hammer, Lightbulb, Rocket, Search, Toolbox, Check, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import StyleChip from "@/components/ui-custom/StyleChip";
