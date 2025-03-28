@@ -36,8 +36,8 @@ const Logo = ({ size = "md", showText = true, variant = "default" }: LogoProps) 
       </div>
       {showText && (
         <span className={`font-bold ${textSizeClasses[size]}`}>
-          <span className={textColors.accent}>Budget</span>
-          <span className={textColors.brand}>Flip</span>
+          <span className={textColors.accent}>Reno</span>
+          <span className={textColors.brand}>Mate</span>
         </span>
       )}
     </div>
