@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/ui-custom/Logo";
 import PageContainer from "@/components/layout/PageContainer";
-import { ArrowRight, PaintBucket, Hammer, Lightbulb, Rocket, Search, Toolbox, Check, Sparkles } from "lucide-react";
+import { ArrowRight, PaintBucket, Hammer, Lightbulb, Rocket, Search, Tool, Check, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import StyleChip from "@/components/ui-custom/StyleChip";
@@ -101,7 +101,7 @@ const Index = () => {
           <div className="grid grid-cols-3 gap-3 mb-6">
             {[
               { title: "Paint Instead of Tile", icon: <PaintBucket className="h-5 w-5" /> },
-              { title: "Stick-on Splashback", icon: <Toolbox className="h-5 w-5" /> },
+              { title: "Stick-on Splashback", icon: <Tool className="h-5 w-5" /> },
               { title: "Reface Cabinets", icon: <Hammer className="h-5 w-5" /> }
             ].map((hack, i) => (
               <div key={i} className="flex flex-col items-center p-3 bg-white rounded-lg shadow-sm border border-gray-100 text-center">

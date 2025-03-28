@@ -76,6 +76,10 @@
     @apply bg-budget-light text-foreground min-h-screen;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight;
+  }
 }
 
 @layer utilities {
@@ -96,11 +100,11 @@
   }
 
   .category-grid {
-    @apply grid grid-cols-3 gap-3;
+    @apply grid grid-cols-3 gap-4;
   }
 
   .category-item {
-    @apply flex flex-col items-center justify-center p-3 bg-white rounded-lg shadow-sm border border-gray-100;
+    @apply flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow-sm border border-gray-100 hover:border-budget-teal/50 transition-all;
   }
 
   /* New DIY-specific utility classes */
@@ -110,5 +114,21 @@
 
   .value-tag {
     @apply bg-budget-teal/10 text-budget-teal text-xs font-medium rounded-full px-2 py-0.5;
+  }
+  
+  .section-spacing {
+    @apply my-8;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-md hover:translate-y-[-2px];
+  }
+  
+  .cta-button {
+    @apply bg-budget-accent text-white font-medium rounded-lg px-4 py-3 w-full flex items-center justify-center gap-2 hover:bg-budget-accent/90 transition-colors;
+  }
+  
+  .animate-fade-in {
+    @apply animate-[fade-in_0.5s_ease-out];
   }
 }
