@@ -4,9 +4,10 @@ import { Home, Sparkles } from "lucide-react";
 interface LogoProps {
   size?: "sm" | "md" | "lg";
   showText?: boolean;
+  variant?: "default" | "white";
 }
 
-const Logo = ({ size = "md", showText = true }: LogoProps) => {
+const Logo = ({ size = "md", showText = true, variant = "default" }: LogoProps) => {
   const sizeClasses = {
     sm: "h-6",
     md: "h-8",
@@ -19,16 +20,24 @@ const Logo = ({ size = "md", showText = true }: LogoProps) => {
     lg: "text-3xl",
   };
 
+  const getTextColors = () => {
+    return variant === "white" 
+      ? { brand: "text-white", accent: "text-white" } 
+      : { brand: "text-budget-teal", accent: "text-budget-dark" };
+  };
+
+  const textColors = getTextColors();
+
   return (
     <div className="flex items-center gap-2">
       <div className="relative">
-        <Home className={`text-budget-teal ${sizeClasses[size]}`} />
-        <Sparkles className={`absolute -top-1 -right-2 text-budget-accent h-4`} />
+        <Home className={`${variant === "white" ? "text-white" : "text-budget-teal"} ${sizeClasses[size]}`} />
+        <Sparkles className={`absolute -top-1 -right-2 ${variant === "white" ? "text-budget-accent" : "text-budget-accent"} h-4`} />
       </div>
       {showText && (
         <span className={`font-bold ${textSizeClasses[size]}`}>
-          <span className="text-budget-dark">Budget</span>
-          <span className="text-budget-teal">Flip</span>
+          <span className={textColors.accent}>Budget</span>
+          <span className={textColors.brand}>Flip</span>
         </span>
       )}
     </div>

@@ -64,11 +64,14 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				// BudgetFlip specific colors
-				"budget-teal": "#33C3F0",
-				"budget-dark": "#403E43",
+				"budget-teal": "#007562", // deep green color from reference
+				"budget-dark": "#212121", // dark text
 				"budget-light": "#F1F0FB",
-				"budget-accent": "#F97316",
+				"budget-accent": "#FF7A00", // bright orange from reference
 				"budget-neutral": "#8E9196",
+				"budget-green-light": "#6DCE87", // lighter green for backgrounds
+				"budget-green-bg": "#EFFBF3", // very light green background
+				"budget-orange-light": "#FFA64D", // lighter orange
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
