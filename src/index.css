@@ -73,7 +73,7 @@
   }
 
   body {
-    @apply bg-budget-green-bg text-foreground min-h-screen;
+    @apply bg-budget-light text-foreground min-h-screen;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
 }
@@ -101,5 +101,14 @@
 
   .category-item {
     @apply flex flex-col items-center justify-center p-3 bg-white rounded-lg shadow-sm border border-gray-100;
+  }
+
+  /* New DIY-specific utility classes */
+  .diy-tag {
+    @apply bg-budget-yellow/20 text-budget-accent text-xs font-medium rounded-full px-2 py-0.5;
+  }
+
+  .value-tag {
+    @apply bg-budget-teal/10 text-budget-teal text-xs font-medium rounded-full px-2 py-0.5;
   }
 }

@@ -63,15 +63,16 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// BudgetFlip specific colors
-				"budget-teal": "#007562", // deep green color from reference
+				// BudgetFlip specific colors - updated for Bunnings-inspired palette
+				"budget-teal": "#2A7B3F", // Updated to Bunnings green
 				"budget-dark": "#212121", // dark text
-				"budget-light": "#F1F0FB",
-				"budget-accent": "#FF7A00", // bright orange from reference
+				"budget-light": "#FDFBF6", // Changed to off-white
+				"budget-accent": "#F26B1D", // Updated to Bunnings orange
 				"budget-neutral": "#8E9196",
 				"budget-green-light": "#6DCE87", // lighter green for backgrounds
-				"budget-green-bg": "#EFFBF3", // very light green background
+				"budget-green-bg": "#FDFBF6", // Changed to off-white background
 				"budget-orange-light": "#FFA64D", // lighter orange
+				"budget-yellow": "#FFD700", // DIY-inspired yellow accent
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
