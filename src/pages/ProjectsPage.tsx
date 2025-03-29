@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 import ProjectCard from "@/components/ui-custom/ProjectCard";
 import { Link } from "react-router-dom";
 
@@ -29,13 +28,17 @@ const ProjectsPage = () => {
 
   return (
     <PageContainer>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">My Projects</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <Link to="/">
+            <Button className="mr-2">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <h1 className="text-xl font-semibold">My Projects</h1>
+        </div>
         <Link to="/new-project">
-          <Button size="sm" className="gap-1">
-            <Plus className="h-4 w-4" />
-            New
-          </Button>
+          <Button>+ New</Button>
         </Link>
       </div>
 
