@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { IMAGES } from "@/constants/images";
-import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter";
+import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter.tsx";
 import { Button } from "@/components/ui/button";
 
 const ProjectsPage = () => {

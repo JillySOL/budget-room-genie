@@ -4,7 +4,7 @@ import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
 import { IMAGES } from "@/constants/images";
-import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter";
+import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter.tsx";
 import {
   Accordion,
   AccordionContent,
