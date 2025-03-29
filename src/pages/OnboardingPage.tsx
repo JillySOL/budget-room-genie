@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Home, Paintbrush, HandSaw, DollarSign, Camera } from "lucide-react";
+import { ArrowLeft, ArrowRight, Home, Paintbrush, Hammer, DollarSign, Camera } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Logo from "@/components/ui-custom/Logo";
 import StyleChip from "@/components/ui-custom/StyleChip";
@@ -23,8 +23,8 @@ const OnboardingPage = () => {
     { id: "bedroom", name: "Bedroom", icon: <Home className="h-5 w-5" /> },
     { id: "kitchen", name: "Kitchen", icon: <Paintbrush className="h-5 w-5" /> },
     { id: "bathroom", name: "Bathroom", icon: <Paintbrush className="h-5 w-5" /> },
-    { id: "office", name: "Home Office", icon: <HandSaw className="h-5 w-5" /> },
-    { id: "outdoor", name: "Outdoor", icon: <HandSaw className="h-5 w-5" /> },
+    { id: "office", name: "Home Office", icon: <Hammer className="h-5 w-5" /> },
+    { id: "outdoor", name: "Outdoor", icon: <Hammer className="h-5 w-5" /> },
   ];
 
   const budgetOptions = [
@@ -45,7 +45,7 @@ const OnboardingPage = () => {
 
   const renovationTypes = [
     { id: "budget", name: "Budget Flip", description: "Quick, affordable DIY makeovers", icon: <DollarSign className="h-5 w-5" /> },
-    { id: "full", name: "Full Renovation", description: "Complete room transformation", icon: <HandSaw className="h-5 w-5" /> },
+    { id: "full", name: "Full Renovation", description: "Complete room transformation", icon: <Hammer className="h-5 w-5" /> },
     { id: "visual", name: "Just Visualize", description: "See ideas without commitment", icon: <Camera className="h-5 w-5" /> },
   ];
 
