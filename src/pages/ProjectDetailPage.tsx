@@ -2,9 +2,15 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import BeforeAfterView from "@/components/ui-custom/BeforeAfterView";
+import { ArrowLeft, Download } from "lucide-react";
 import { IMAGES } from "@/constants/images";
+import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const BATHROOM_SUGGESTIONS = [
   {
@@ -54,11 +60,19 @@ const BATHROOM_SUGGESTIONS = [
 const ProjectDetailPage = () => {
   const { id } = useParams();
   
-  const totalCost = BATHROOM_SUGGESTIONS.reduce((acc, item) => acc + item.estimatedCost, 0);
+  const handleSaveToNotebook = () => {
+    localStorage.setItem('savedDesign', JSON.stringify({
+      id: "bathroom-refresh",
+      name: "Budget-Friendly Refresh",
+      totalCost: 780,
+      valueAdd: 18000,
+      suggestions: BATHROOM_SUGGESTIONS,
+    }));
+  };
 
   return (
     <PageContainer>
-      <div className="flex items-center mb-6">
+      <div className="flex items-center mb-8">
         <Link to="/">
           <Button className="mr-2">
             <ArrowLeft className="h-4 w-4" />
@@ -67,38 +81,64 @@ const ProjectDetailPage = () => {
         <h1 className="text-xl font-semibold">Bathroom Renovation</h1>
       </div>
       
-      <div className="space-y-6">
-        <BeforeAfterView
-          beforeImage={IMAGES.BEFORE}
-          afterImage={IMAGES.AFTER}
-        />
-        
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">Suggested Changes</h2>
-            <div className="text-sm font-medium">
-              Total: <span className="text-budget-accent">${totalCost} AUD</span>
-            </div>
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-budget-dark">Budget-Friendly Refresh</h2>
+            <span className="bg-[#E6F4EA] text-green-800 text-sm font-medium px-2.5 py-1 rounded-full">
+              +$18,000 Value
+            </span>
           </div>
+
+          <EnhancedBeforeAfter
+            beforeImage={IMAGES.BEFORE}
+            afterImage={IMAGES.AFTER}
+            className="mb-6"
+          />
           
-          <div className="space-y-6">
-            {BATHROOM_SUGGESTIONS.map((suggestion) => (
-              <div key={suggestion.id} className="flex items-start gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-budget-dark">{suggestion.title}</h3>
-                    <span className="text-sm font-medium text-budget-accent">${suggestion.estimatedCost}</span>
+          <Accordion type="single" collapsible className="mb-6">
+            <AccordionItem value="suggestions">
+              <AccordionTrigger className="text-budget-accent">
+                View suggested DIY improvements
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-6 pt-4">
+                  {BATHROOM_SUGGESTIONS.map((suggestion) => (
+                    <div key={suggestion.id} className="flex items-start gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium text-budget-dark">{suggestion.title}</h3>
+                          <span className="text-sm font-medium text-budget-accent">
+                            ${suggestion.estimatedCost}
+                          </span>
+                        </div>
+                        <p className="text-sm text-budget-dark/70">{suggestion.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="flex justify-between items-center pt-4 border-t">
+                    <span className="font-medium">Total Cost</span>
+                    <span className="text-budget-accent font-medium">
+                      $780 AUD
+                    </span>
                   </div>
-                  <p className="text-sm text-budget-dark/70">{suggestion.description}</p>
                 </div>
-              </div>
-            ))}
-          </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
           
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <div className="text-sm text-budget-dark/70">
-              <strong>DIY Options Used:</strong> Peel-and-stick tile, paint, fixture replacement
-            </div>
+          <div className="flex flex-col gap-3">
+            <Button className="w-full gap-2">
+              <Download className="h-4 w-4" />
+              Save to My Projects
+            </Button>
+            <Button 
+              className="w-full bg-[#f9f9f9] hover:bg-[#f0f0f0] text-budget-dark border border-gray-200 flex items-center justify-start px-4"
+              onClick={handleSaveToNotebook}
+            >
+              <span className="mr-2">📝</span> Save to Notebook
+            </Button>
           </div>
         </div>
       </div>
