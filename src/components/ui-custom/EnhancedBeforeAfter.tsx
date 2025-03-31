@@ -28,8 +28,16 @@ const EnhancedBeforeAfter = ({
       <ReactCompareImage
         leftImage={beforeImage}
         rightImage={afterImage}
-        leftImageLabel={beforeLabel}
-        rightImageLabel={afterLabel}
+        leftImageLabel={
+          <div className="absolute top-3 left-3 bg-black/70 text-white px-3 py-1 rounded-md text-xs font-medium shadow-sm">
+            {beforeLabel}
+          </div>
+        }
+        rightImageLabel={
+          <div className="absolute top-3 right-3 bg-black/70 text-white px-3 py-1 rounded-md text-xs font-medium shadow-sm">
+            {afterLabel}
+          </div>
+        }
         sliderLineWidth={2}
         handleSize={48}
         hover
@@ -55,7 +63,18 @@ const EnhancedBeforeAfter = ({
         }
       />
       <div className="absolute bottom-3 left-0 right-0 flex justify-center">
-        <div className={`bg-black/40 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full transition-opacity duration-300 ${isHovering ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`bg-black/40 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full transition-opacity duration-300 flex items-center gap-1 ${isHovering ? 'opacity-0' : 'opacity-100 animate-pulse'}`}>
+          <svg 
+            width="14" 
+            height="14" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            className="text-white animate-bounce"
+          >
+            <path d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+          </svg>
           Slide to compare
         </div>
       </div>
