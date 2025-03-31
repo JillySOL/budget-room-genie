@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Home, Paintbrush, Hammer, DollarSign, Camera } from "lucide-react";
+import { ArrowLeft, ArrowRight, Home, Paintbrush, Hammer, DollarSign, Camera, Check } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Logo from "@/components/ui-custom/Logo";
 import StyleChip from "@/components/ui-custom/StyleChip";
