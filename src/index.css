@@ -107,7 +107,7 @@
     @apply flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow-sm border border-gray-100 hover:border-budget-teal/50 transition-all;
   }
 
-  /* New DIY-specific utility classes */
+  /* Common tag classes */
   .diy-tag {
     @apply bg-budget-yellow/20 text-budget-accent text-xs font-medium rounded-full px-2 py-0.5;
   }
@@ -116,28 +116,31 @@
     @apply bg-budget-teal/10 text-budget-teal text-xs font-medium rounded-full px-2 py-0.5;
   }
   
+  /* Spacing and layout */
   .section-spacing {
     @apply my-8;
   }
   
+  /* Card interactions */
   .card-hover {
     @apply transition-all duration-200 hover:shadow-md hover:translate-y-[-2px];
   }
   
+  /* Common button style */
   .cta-button {
     @apply bg-budget-accent text-white font-medium rounded-lg px-4 py-3 w-full flex items-center justify-center gap-2 hover:bg-budget-accent/90 transition-colors;
   }
   
+  /* Animation utilities */
   .animate-fade-in {
     @apply animate-[fade-in_0.5s_ease-out];
   }
   
-  /* Hide scrollbar for Chrome, Safari and Opera */
+  /* Hide scrollbar for various browsers */
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
   
-  /* Hide scrollbar for IE, Edge and Firefox */
   .scrollbar-hide {
     -ms-overflow-scrollbar: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
