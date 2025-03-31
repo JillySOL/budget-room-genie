@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { IMAGES } from "@/constants/images";
 
@@ -33,7 +34,7 @@ export const BeforeAfterPreview = () => {
           </div>
         )}
         <img 
-          src={IMAGES.BEFORE}
+          src="/lovable-uploads/c4de2f88-0972-405e-8074-31f1bde935de.png"
           alt="Before Room" 
           className={`w-full h-full object-cover transition-opacity duration-300 ${imagesLoaded.before ? 'opacity-100' : 'opacity-0'}`}
           onLoad={() => handleImageLoad('before')}
@@ -47,7 +48,7 @@ export const BeforeAfterPreview = () => {
           </div>
         )}
         <img 
-          src={IMAGES.AFTER}
+          src="/after.png"
           alt="After Room" 
           className={`w-full h-full object-cover transition-opacity duration-300 ${imagesLoaded.after ? 'opacity-100' : 'opacity-0'}`}
           onLoad={() => handleImageLoad('after')}
@@ -58,4 +59,4 @@ export const BeforeAfterPreview = () => {
   );
 };
 
-export default BeforeAfterPreview; 
+export default BeforeAfterPreview;
