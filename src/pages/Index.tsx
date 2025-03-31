@@ -118,7 +118,7 @@ const Index = () => {
           
           <div className="pt-2 pb-1">
             <span className="bg-budget-accent/10 text-budget-accent px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center">
-              <span className="mr-1">🏠</span> {/* Changed text here */}
+              <span className="mr-1">🏠</span>
               <span className="font-bold animate-pulse">53</span> rooms transformed this week
             </span>
           </div>
@@ -179,7 +179,7 @@ const Index = () => {
           
           <TabsContent value="rooms" className="mt-4">
             <div className="space-y-6">
-              {/* Recently active project - Updated the Badge format */}
+              {/* Recently active project - Updated with subtle progress bar */}
               <Link to="/project/bathroom-refresh" className="block">
                 <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-5">
@@ -189,15 +189,13 @@ const Index = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col gap-2 mb-3">
                         <h3 className="font-medium text-budget-dark text-lg">Bathroom Renovation</h3>
-                        <Badge 
-                          variant="success" 
-                          className="inline-block w-fit shadow-sm"
-                          icon="💰"
-                        >
-                          +$18,000 Value | ROI: 360%
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          <span className="text-budget-teal/90 text-xs font-semibold">+$18,000 Value</span>
+                          <span className="text-budget-dark/40 text-xs">|</span>
+                          <span className="text-budget-dark/70 text-xs font-medium">ROI: 360%</span>
+                        </div>
                       </div>
-                      <Progress value={100} className="h-3 rounded-full bg-gray-100" />
+                      <Progress value={100} className="h-1.5 rounded-full bg-gray-100" />
                     </div>
                     <ArrowRight className="h-5 w-5 text-budget-neutral shrink-0 ml-2" />
                   </div>
@@ -282,14 +280,6 @@ const Index = () => {
                 </div>
               ))}
             </div>
-          </div>
-          
-          {/* Real-time Stats - Animated counter look */}
-          <div className="mt-4 bg-budget-accent/10 rounded-lg p-3 text-center">
-            <p className="text-sm flex items-center justify-center gap-1">
-              <span className="font-bold text-budget-accent animate-pulse">53</span> 
-              <span className="text-budget-accent font-medium">rooms transformed this week</span>
-            </p>
           </div>
         </div>
       </div>

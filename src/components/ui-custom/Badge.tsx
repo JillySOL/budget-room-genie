@@ -1,7 +1,7 @@
 
 import { cn } from "@/lib/utils";
 
-export type BadgeVariant = "default" | "success" | "warning";
+export type BadgeVariant = "default" | "success" | "warning" | "subtle" | "value";
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -14,7 +14,9 @@ interface BadgeProps {
 const variants: Record<BadgeVariant, string> = {
   default: "bg-budget-accent/10 text-budget-accent",
   success: "bg-green-600 text-white",
-  warning: "bg-yellow-500/20 text-yellow-700"
+  warning: "bg-yellow-500/20 text-yellow-700",
+  subtle: "text-budget-dark/70 font-medium",
+  value: "bg-budget-teal/10 text-budget-teal font-medium"
 };
 
 export const Badge = ({ children, variant = "default", className, style, icon }: BadgeProps) => {
