@@ -28,16 +28,8 @@ const EnhancedBeforeAfter = ({
       <ReactCompareImage
         leftImage={beforeImage}
         rightImage={afterImage}
-        leftImageLabel={
-          <div className="bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-sm text-xs font-bold">
-            {beforeLabel}
-          </div>
-        }
-        rightImageLabel={
-          <div className="bg-budget-accent/70 backdrop-blur-sm text-white px-3 py-1 rounded-sm text-xs font-bold">
-            {afterLabel}
-          </div>
-        }
+        leftImageLabel={beforeLabel}
+        rightImageLabel={afterLabel}
         sliderLineWidth={2}
         handleSize={48}
         hover

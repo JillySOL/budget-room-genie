@@ -37,13 +37,6 @@ const HeroSection = () => {
           <span className="text-xs text-budget-dark/60 mt-1.5">Takes less than 30 seconds</span>
         </div>
       </div>
-      
-      <div className="pt-2 pb-1">
-        <span className="bg-budget-accent/10 text-budget-accent px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center">
-          <span className="mr-1">🏠</span>
-          <span className="font-bold animate-pulse">53</span> rooms transformed this week
-        </span>
-      </div>
     </div>
   );
 };
