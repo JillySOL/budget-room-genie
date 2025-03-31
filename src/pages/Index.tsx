@@ -118,7 +118,8 @@ const Index = () => {
           
           <div className="pt-2 pb-1">
             <span className="bg-budget-accent/10 text-budget-accent px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center">
-              <span className="mr-1">🏠</span> Trusted by DIYers, renovators & homeowners across Australia
+              <span className="mr-1">🏠</span> {/* Changed text here */}
+              <span className="font-bold animate-pulse">53</span> rooms transformed this week
             </span>
           </div>
         </div>
@@ -178,7 +179,7 @@ const Index = () => {
           
           <TabsContent value="rooms" className="mt-4">
             <div className="space-y-6">
-              {/* Recently active project */}
+              {/* Recently active project - Updated the Badge format */}
               <Link to="/project/bathroom-refresh" className="block">
                 <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-5">
