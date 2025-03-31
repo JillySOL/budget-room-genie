@@ -10,16 +10,13 @@ const BeforeAfterSection = () => {
         See the transformation
         <span className="ml-2 text-xs bg-budget-accent/10 text-budget-accent px-2 py-0.5 rounded-full">Swipe to compare</span>
       </h2>
-      <div className="rounded-xl overflow-hidden shadow-md border border-gray-200 relative">
+      <div className="rounded-xl overflow-hidden shadow-md border border-gray-200">
         <EnhancedBeforeAfter
           beforeImage={IMAGES.BEFORE}
           afterImage={IMAGES.AFTER}
+          beforeLabel="BEFORE"
+          afterLabel="AFTER"
         />
-        <div className="absolute bottom-3 left-0 right-0 flex justify-center">
-          <div className="bg-black/60 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full flex items-center">
-            <span className="mr-1">👆</span> Slide to compare
-          </div>
-        </div>
       </div>
     </div>
   );
