@@ -1,6 +1,8 @@
 
 import ReactCompareImage from "react-compare-image";
 import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ArrowRight } from "lucide-react";
 
 interface EnhancedBeforeAfterProps {
   beforeImage: string;
@@ -25,19 +27,16 @@ const EnhancedBeforeAfter = ({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
+      <div className="absolute top-3 left-3 z-10 bg-black/70 text-white px-3 py-1 rounded-md text-xs font-medium shadow-sm">
+        {beforeLabel}
+      </div>
+      <div className="absolute top-3 right-3 z-10 bg-black/70 text-white px-3 py-1 rounded-md text-xs font-medium shadow-sm">
+        {afterLabel}
+      </div>
+      
       <ReactCompareImage
         leftImage={beforeImage}
         rightImage={afterImage}
-        leftImageLabel={
-          <div className="absolute top-3 left-3 bg-black/70 text-white px-3 py-1 rounded-md text-xs font-medium shadow-sm">
-            {beforeLabel}
-          </div>
-        }
-        rightImageLabel={
-          <div className="absolute top-3 right-3 bg-black/70 text-white px-3 py-1 rounded-md text-xs font-medium shadow-sm">
-            {afterLabel}
-          </div>
-        }
         sliderLineWidth={2}
         handleSize={48}
         hover
@@ -62,22 +61,28 @@ const EnhancedBeforeAfter = ({
           </div>
         }
       />
-      <div className="absolute bottom-3 left-0 right-0 flex justify-center">
-        <div className={`bg-black/40 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full transition-opacity duration-300 flex items-center gap-1 ${isHovering ? 'opacity-0' : 'opacity-100 animate-pulse'}`}>
-          <svg 
-            width="14" 
-            height="14" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            className="text-white animate-bounce"
-          >
-            <path d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-          </svg>
-          Slide to compare
-        </div>
-      </div>
+      
+      {!isHovering && (
+        <TooltipProvider>
+          <Tooltip defaultOpen>
+            <TooltipTrigger asChild>
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center pointer-events-none">
+                <div className="bg-black/40 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 animate-pulse">
+                  <ArrowRight className="h-3.5 w-3.5 animate-bounce" />
+                  Slide to compare
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent 
+              side="bottom" 
+              className="bg-budget-accent/90 text-white border-budget-accent"
+              sideOffset={5}
+            >
+              Drag the handle to compare images
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   );
 };
