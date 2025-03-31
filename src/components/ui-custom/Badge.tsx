@@ -8,6 +8,7 @@ interface BadgeProps {
   variant?: BadgeVariant;
   className?: string;
   style?: React.CSSProperties;
+  icon?: React.ReactNode;
 }
 
 const variants: Record<BadgeVariant, string> = {
@@ -16,7 +17,7 @@ const variants: Record<BadgeVariant, string> = {
   warning: "bg-yellow-500/20 text-yellow-700"
 };
 
-export const Badge = ({ children, variant = "default", className, style }: BadgeProps) => {
+export const Badge = ({ children, variant = "default", className, style, icon }: BadgeProps) => {
   return (
     <span 
       className={cn(
@@ -26,9 +27,10 @@ export const Badge = ({ children, variant = "default", className, style }: Badge
       )}
       style={style}
     >
+      {icon && <span className="flex-shrink-0">{icon}</span>}
       {children}
     </span>
   );
 };
 
-export default Badge; 
+export default Badge;

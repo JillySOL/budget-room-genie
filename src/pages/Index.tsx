@@ -52,21 +52,24 @@ const ROOM_TYPES = [
 const QUICK_WINS = [
   {
     title: "Paint Refresh",
-    description: "Simple color changes can transform any room",
+    description: "Fresh walls boost brightness and appeal",
     image: "/after.png",
-    valueIncrease: "$5,000+"
+    valueIncrease: "$5,000+",
+    cost: "$100 DIY job"
   },
   {
     title: "Lighting Update",
     description: "Modern fixtures for an instant upgrade",
     image: "/lovable-uploads/e6b83d6a-eeaf-4229-be7d-8dea49c70b2f.png",
-    valueIncrease: "$3,000+"
+    valueIncrease: "$3,000+",
+    cost: "$150 DIY job"
   },
   {
     title: "Hardware Swap",
     description: "Replace cabinet handles and doorknobs",
     image: "/lovable-uploads/ff66ab71-8056-4e11-8f9c-5ca7bcd63501.png",
-    valueIncrease: "$2,000+"
+    valueIncrease: "$2,000+",
+    cost: "Under $200"
   }
 ];
 
@@ -84,21 +87,21 @@ const Index = () => {
           </Link>
         </div>
         
-        {/* Hero Section - Updated with improved typography and spacing */}
+        {/* Hero Section - Updated with improved typography and content */}
         <div className="relative bg-gradient-to-r from-budget-light to-budget-light/50 rounded-xl p-6 mb-4">
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2 text-budget-dark">
-            Transform your home with<br />
-            <span className="text-budget-teal">AI-powered design</span>
+            Add $18,000+ Value to Your Home<br />
+            <span className="text-budget-teal">With Just 1 Photo</span>
           </h1>
           <p className="text-md text-budget-dark/70 max-w-md mb-6 font-light leading-relaxed">
-            Create stunning before & after transformations that add real value to your property
+            Get smart, budget-friendly redesigns powered by AI — no tradies, no hassle.
           </p>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
             <Link to="/new-project">
               <Button size="lg" className="gap-1 shadow-sm relative overflow-hidden group">
                 <Sparkles className="h-4 w-4 relative z-10" />
-                <span className="relative z-10">Start Your Project</span>
+                <span className="relative z-10">Get My Free Room Flip</span>
                 <ChevronRight className="h-4 w-4 relative z-10" />
                 <span className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
               </Button>
@@ -107,14 +110,15 @@ const Index = () => {
               variant="success" 
               className="mt-2 sm:mt-0 shadow-sm"
               style={{ fontSize: '0.7rem' }}
+              icon="💰"
             >
-              <span>💰</span> +$18,000 Value
+              +$18,000 Value Added
             </Badge>
           </div>
           
           <div className="pt-2 pb-1">
             <span className="bg-budget-accent/10 text-budget-accent px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center">
-              <span className="mr-1">🏠</span> Join 10,000+ homeowners who transformed their spaces
+              <span className="mr-1">🏠</span> Trusted by DIYers, renovators & homeowners across Australia
             </span>
           </div>
         </div>
@@ -184,8 +188,12 @@ const Index = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col gap-2 mb-3">
                         <h3 className="font-medium text-budget-dark text-lg">Bathroom Renovation</h3>
-                        <Badge variant="success" style={{ fontSize: '0.7rem' }}>
-                          <span>💰</span> +$18,000 Value
+                        <Badge 
+                          variant="success" 
+                          className="inline-block w-fit shadow-sm"
+                          icon="💰"
+                        >
+                          +$18,000 Value | ROI: 360%
                         </Badge>
                       </div>
                       <Progress value={100} className="h-3 rounded-full bg-gray-100" />
@@ -237,13 +245,13 @@ const Index = () => {
           </TabsContent>
         </Tabs>
         
-        {/* Quick Wins Section - Converted to horizontal scrollable cards */}
+        {/* Quick Wins Section - Updated with better copy and consistent styling */}
         <div className="pt-2">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-medium text-budget-dark flex items-center gap-1.5">
-              <Sparkles className="h-4 w-4 text-budget-accent" /> Easy Wins
+              <Sparkles className="h-4 w-4 text-budget-accent" /> DIY That Pays Off
             </h2>
-            <span className="text-xs text-budget-dark/70">Small DIY changes, big results</span>
+            <span className="text-xs text-budget-dark/70">Save thousands with simple upgrades</span>
           </div>
           
           <div className="overflow-x-auto -mx-4 px-4">
@@ -260,30 +268,18 @@ const Index = () => {
                     <div>
                       <h3 className="font-medium text-budget-dark">{win.title}</h3>
                       <p className="text-xs text-budget-dark/70">{win.description}</p>
-                      <div className="mt-1">
+                      <div className="mt-2 space-y-1">
                         <span className="text-xs flex items-center gap-1 bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-medium">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 19V5M5 12l7-7 7 7"/>
-                          </svg>
-                          {win.valueIncrease} value
+                          ✅ Adds {win.valueIncrease} Value
+                        </span>
+                        <span className="text-xs flex items-center gap-1 bg-budget-accent/10 text-budget-accent px-2 py-0.5 rounded-full font-medium">
+                          {win.title === "Paint Refresh" ? "🎨" : win.title === "Lighting Update" ? "💡" : "🔧"} {win.cost}
                         </span>
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-          
-          {/* Trust Building Element */}
-          <div className="mt-6 bg-budget-light rounded-lg p-4 border border-gray-100">
-            <div className="text-center">
-              <p className="text-xs font-medium text-budget-dark/70 mb-2">FEATURED IN</p>
-              <div className="flex justify-center items-center gap-6">
-                <div className="text-budget-dark/50 font-semibold text-sm">Home & Design</div>
-                <div className="text-budget-dark/50 font-semibold text-sm">RenovateDaily</div>
-                <div className="text-budget-dark/50 font-semibold text-sm">DIY Network</div>
-              </div>
             </div>
           </div>
           
