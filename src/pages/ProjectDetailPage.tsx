@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
@@ -74,8 +75,8 @@ const ProjectDetailPage = () => {
     <PageContainer>
       <div className="flex items-center mb-8">
         <Link to="/">
-          <Button className="mr-2">
-            <ArrowLeft className="h-4 w-4" />
+          <Button className="mr-2 tap-target" aria-label="Back to Home">
+            <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
         <h1 className="text-xl font-semibold">Bathroom Renovation</h1>
@@ -85,7 +86,10 @@ const ProjectDetailPage = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-budget-dark">Budget-Friendly Refresh</h2>
-            <span className="bg-[#E6F4EA] text-green-800 text-sm font-medium px-2.5 py-1 rounded-full">
+            <span className="bg-[#E6F4EA] text-green-800 text-sm font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 19V5M5 12l7-7 7 7"/>
+              </svg>
               +$18,000 Value
             </span>
           </div>

@@ -6,14 +6,21 @@ import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter.tsx"
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { ArrowRight, PlusCircle } from "lucide-react";
+import { ArrowRight, PlusCircle, ArrowLeft } from "lucide-react";
 
 const ProjectsPage = () => {
   return (
     <PageContainer>
       <div className="space-y-6">
         <div className="py-4 flex justify-between items-center">
-          <h1 className="text-xl font-semibold">My Projects</h1>
+          <div className="flex items-center gap-2">
+            <Link to="/">
+              <Button variant="outline" size="icon" className="tap-target" aria-label="Back to Home">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <h1 className="text-xl font-semibold">My Projects</h1>
+          </div>
           <Link to="/new-project">
             <Button variant="ghost" size="sm" className="gap-1">
               <PlusCircle className="h-4 w-4" />
@@ -24,10 +31,10 @@ const ProjectsPage = () => {
         
         {/* Tabs Navigation */}
         <Tabs defaultValue="active" className="w-full">
-          <TabsList className="w-full grid grid-cols-3">
-            <TabsTrigger value="active" className="text-sm">Active</TabsTrigger>
-            <TabsTrigger value="completed" className="text-sm">Completed</TabsTrigger>
-            <TabsTrigger value="saved" className="text-sm">Saved</TabsTrigger>
+          <TabsList className="w-full grid grid-cols-3 p-0.5 rounded-lg">
+            <TabsTrigger value="active" className="text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium">Active</TabsTrigger>
+            <TabsTrigger value="completed" className="text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium">Completed</TabsTrigger>
+            <TabsTrigger value="saved" className="text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium">Saved</TabsTrigger>
           </TabsList>
         </Tabs>
         
@@ -45,7 +52,10 @@ const ProjectsPage = () => {
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium text-budget-dark text-lg">Bathroom Renovation</h3>
-                  <span className="bg-[#E6F4EA] text-green-800 text-xs font-medium px-2.5 py-1 rounded-full">
+                  <span className="bg-[#E6F4EA] text-green-800 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
                     +$18,000 Value
                   </span>
                 </div>
