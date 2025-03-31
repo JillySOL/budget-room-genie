@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/ui-custom/Logo";
 import PageContainer from "@/components/layout/PageContainer";
-import { ArrowRight, Sparkles, PlusCircle, ChevronRight } from "lucide-react";
+import { ArrowRight, Sparkles, PlusCircle, ChevronRight, Home as HomeIcon, Image } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -84,18 +84,20 @@ const Index = () => {
           </Link>
         </div>
         
-        {/* Hero Section - Updated with improved spacing and typography */}
+        {/* Hero Section - Updated with improved typography and spacing */}
         <div className="relative bg-gradient-to-r from-budget-light to-budget-light/50 rounded-xl p-6 mb-4">
-          <h1 className="text-2xl font-bold mb-2 text-budget-dark">
-            Transform your home with<br />AI-powered design
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2 text-budget-dark">
+            Transform your home with<br />
+            <span className="text-budget-teal">AI-powered design</span>
           </h1>
-          <p className="mb-6 text-budget-dark/70 text-sm max-w-xs font-light leading-relaxed">
+          <p className="text-md text-budget-dark/70 max-w-md mb-6 font-light leading-relaxed">
             Create stunning before & after transformations that add real value to your property
           </p>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
             <Link to="/new-project">
               <Button size="lg" className="gap-1 shadow-sm relative overflow-hidden group">
+                <Sparkles className="h-4 w-4 relative z-10" />
                 <span className="relative z-10">Start Your Project</span>
                 <ChevronRight className="h-4 w-4 relative z-10" />
                 <span className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
@@ -103,7 +105,7 @@ const Index = () => {
             </Link>
             <Badge 
               variant="success" 
-              className="animate-pulse mt-2 sm:mt-0 shadow-sm"
+              className="mt-2 sm:mt-0 shadow-sm"
               style={{ fontSize: '0.7rem' }}
             >
               <span>💰</span> +$18,000 Value
@@ -111,25 +113,28 @@ const Index = () => {
           </div>
           
           <div className="pt-2 pb-1">
-            <p className="text-xs text-budget-dark/70 mb-2">
-              Join 10,000+ homeowners who transformed their spaces
-            </p>
+            <span className="bg-budget-accent/10 text-budget-accent px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center">
+              <span className="mr-1">🏠</span> Join 10,000+ homeowners who transformed their spaces
+            </span>
           </div>
         </div>
         
-        {/* Before/After Preview - Enhanced with swipe hints and better labels */}
+        {/* Before/After Preview - Enhanced with better visual cues */}
         <div className="mb-6">
           <h2 className="font-medium text-budget-dark mb-3 flex items-center">
             See the transformation
             <span className="ml-2 text-xs bg-budget-accent/10 text-budget-accent px-2 py-0.5 rounded-full">Swipe to compare</span>
           </h2>
-          <div className="rounded-xl overflow-hidden shadow-sm relative">
+          <div className="rounded-xl overflow-hidden shadow-md border border-gray-200 relative">
             <EnhancedBeforeAfter
               beforeImage={IMAGES.BEFORE}
               afterImage={IMAGES.AFTER}
             />
-            <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full">Before</div>
-            <div className="absolute top-3 right-3 bg-budget-accent/50 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full">After</div>
+            <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+              <div className="bg-black/60 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full flex items-center">
+                <span className="mr-1">👆</span> Slide to compare
+              </div>
+            </div>
           </div>
         </div>
         
@@ -156,11 +161,15 @@ const Index = () => {
           </Link>
         </div>
         
-        {/* Tabs Navigation - Improved contrast and visual cues */}
+        {/* Tabs Navigation - Improved with icons and better visual cues */}
         <Tabs defaultValue="rooms" className="w-full">
           <TabsList className="w-full grid grid-cols-2 p-0.5 rounded-lg">
-            <TabsTrigger value="rooms" className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium">My Rooms</TabsTrigger>
-            <TabsTrigger value="photos" className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium">My Photos</TabsTrigger>
+            <TabsTrigger value="rooms" className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium flex items-center justify-center gap-1.5">
+              <HomeIcon className="h-4 w-4" /> My Rooms
+            </TabsTrigger>
+            <TabsTrigger value="photos" className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium flex items-center justify-center gap-1.5">
+              <Image className="h-4 w-4" /> My Photos
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="rooms" className="mt-4">
@@ -186,37 +195,32 @@ const Index = () => {
                 </div>
               </Link>
               
-              {/* Room category cards - Improved spacing and tile uniformity */}
-              <div className="grid grid-cols-2 gap-3">
-                {ROOM_TYPES.map((room, i) => (
-                  <Link key={i} to={room.link} className="block">
-                    <div className="relative rounded-xl overflow-hidden aspect-square shadow-sm hover:shadow-md transition-all">
-                      <img 
-                        src={room.image} 
-                        alt={room.name} 
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent p-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-white font-medium">Add {room.name}</span>
-                          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md">
-                            <PlusCircle className="h-5 w-5 text-budget-accent hover:scale-110 transition-transform duration-200" />
-                          </div>
-                        </div>
-                        <div className="mt-1 flex items-center gap-1">
-                          <span className="text-xs text-white/90 flex items-center gap-1">
-                            <span className="bg-green-600/20 rounded-full px-1.5 py-0.5 flex items-center">
-                              <span className="mr-1">↗️</span> Avg. value: {room.valueIncrease}
+              {/* Room category cards - Converted to horizontal scrollable carousel */}
+              <div className="overflow-x-auto pb-4 -mx-4 px-4">
+                <div className="flex gap-3 min-w-full">
+                  {ROOM_TYPES.map((room, i) => (
+                    <div key={i} className="min-w-[160px] w-[160px] flex-shrink-0">
+                      <Link to={room.link} className="block">
+                        <div className="relative rounded-xl overflow-hidden aspect-square shadow-sm hover:shadow-md transition-all">
+                          <img 
+                            src={room.image} 
+                            alt={room.name} 
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent p-3">
+                            <p className="text-white font-medium text-sm">Add {room.name}</p>
+                            <span className="text-xs text-white/90 bg-green-600/20 rounded-full px-1.5 py-0.5 mt-1 inline-block">
+                              Avg: {room.valueIncrease}
                             </span>
-                          </span>
+                          </div>
+                          <button className="absolute top-2 right-2 bg-budget-accent text-white text-xs rounded-full p-1.5 shadow-md">
+                            <PlusCircle className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                      </div>
-                      <Link to={`/examples?room=${room.name.toLowerCase()}`} className="absolute top-2 right-2 bg-white/80 backdrop-blur-sm text-xs px-2 py-1 rounded-full text-budget-dark font-medium shadow-sm">
-                        See Example
                       </Link>
                     </div>
-                  </Link>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </TabsContent>
@@ -233,38 +237,42 @@ const Index = () => {
           </TabsContent>
         </Tabs>
         
-        {/* Quick Wins Section - Improved with value visualization */}
+        {/* Quick Wins Section - Converted to horizontal scrollable cards */}
         <div className="pt-2">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-medium text-budget-dark">Easy Wins</h2>
+            <h2 className="font-medium text-budget-dark flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-budget-accent" /> Easy Wins
+            </h2>
             <span className="text-xs text-budget-dark/70">Small DIY changes, big results</span>
           </div>
           
-          <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide -mx-4 px-4">
-            {QUICK_WINS.map((win, i) => (
-              <div 
-                key={i} 
-                className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow min-w-[240px] flex-shrink-0"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
-                    <img src={win.image} alt={win.title} className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-budget-dark">{win.title}</h3>
-                    <p className="text-xs text-budget-dark/70">{win.description}</p>
-                    <div className="mt-1">
-                      <span className="text-xs flex items-center gap-1 bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-medium">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 19V5M5 12l7-7 7 7"/>
-                        </svg>
-                        {win.valueIncrease} value
-                      </span>
+          <div className="overflow-x-auto -mx-4 px-4">
+            <div className="flex gap-3 pb-4">
+              {QUICK_WINS.map((win, i) => (
+                <div 
+                  key={i} 
+                  className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow min-w-[240px] w-[240px] flex-shrink-0"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+                      <img src={win.image} alt={win.title} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-budget-dark">{win.title}</h3>
+                      <p className="text-xs text-budget-dark/70">{win.description}</p>
+                      <div className="mt-1">
+                        <span className="text-xs flex items-center gap-1 bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-medium">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 19V5M5 12l7-7 7 7"/>
+                          </svg>
+                          {win.valueIncrease} value
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
           
           {/* Trust Building Element */}
@@ -279,9 +287,12 @@ const Index = () => {
             </div>
           </div>
           
-          {/* Real-time Stats */}
+          {/* Real-time Stats - Animated counter look */}
           <div className="mt-4 bg-budget-accent/10 rounded-lg p-3 text-center">
-            <p className="text-sm font-medium text-budget-accent">50 rooms transformed this week</p>
+            <p className="text-sm flex items-center justify-center gap-1">
+              <span className="font-bold text-budget-accent animate-pulse">53</span> 
+              <span className="text-budget-accent font-medium">rooms transformed this week</span>
+            </p>
           </div>
         </div>
       </div>
