@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/ui-custom/Logo";
 import PageContainer from "@/components/layout/PageContainer";
-import { ArrowRight, Sparkles, PlusCircle, Check, Tool, PaintBucket } from "lucide-react";
+import { ArrowRight, Sparkles, PlusCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -43,25 +43,6 @@ const ROOM_TYPES = [
   }
 ];
 
-// Easy wins data
-const EASY_WINS = [
-  {
-    title: "Paint a Room",
-    icon: <PaintBucket className="h-6 w-6 text-budget-accent" />,
-    value: "Value +$3,000"
-  },
-  {
-    title: "Update Blinds",
-    icon: <Tool className="h-6 w-6 text-budget-accent" />,
-    value: "Under $200"
-  },
-  {
-    title: "Renew Cabinets",
-    icon: <Tool className="h-6 w-6 text-budget-accent" />,
-    value: "Weekend Project"
-  }
-];
-
 const Index = () => {
   return (
     <PageContainer>
@@ -74,57 +55,6 @@ const Index = () => {
               New
             </Button>
           </Link>
-        </div>
-        
-        {/* Before and after preview from the image */}
-        <div className="rounded-lg overflow-hidden mb-4">
-          <img 
-            src="/lovable-uploads/2f60cf6f-ecb0-45b4-91c9-c1a24a3edd37.png" 
-            alt="Before and After Bathroom" 
-            className="w-full h-auto"
-          />
-        </div>
-        
-        {/* Real reno ideas section */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-budget-accent">💡</span>
-            <h2 className="text-2xl font-bold text-budget-dark">Real reno ideas.</h2>
-          </div>
-          <p className="text-2xl font-bold text-green-500">Budget-friendly results.</p>
-          <p className="text-gray-600">
-            Get personalised room redesigns powered by AI — no tradies, just smart choices.
-          </p>
-        </div>
-        
-        {/* Try it free button */}
-        <Link to="/new-project" className="block">
-          <Button className="w-full py-6 text-lg bg-[#FFA726] hover:bg-[#FF9800]">
-            Try it Free — Reno my Home <span className="ml-2">🚀</span>
-          </Button>
-        </Link>
-        
-        <div className="flex items-center justify-center text-green-500 gap-2 mb-4">
-          <Check className="h-5 w-5" />
-          <span>3 Free AI Designs Included</span>
-        </div>
-        
-        {/* Easy Wins section */}
-        <div className="py-4">
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-yellow-500">🏷️</span>
-            <h2 className="text-2xl font-bold text-budget-dark">Easy Wins That Add Real Value</h2>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-4">
-            {EASY_WINS.map((win, index) => (
-              <div key={index} className="flex flex-col items-center text-center">
-                <div className="mb-3">{win.icon}</div>
-                <h3 className="font-medium mb-2">{win.title}</h3>
-                <p className="text-budget-accent text-sm">{win.value}</p>
-              </div>
-            ))}
-          </div>
         </div>
         
         {/* Main action cards */}
