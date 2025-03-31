@@ -23,7 +23,7 @@ const PageContainer = ({
   };
 
   return (
-    <div className={`mobile-container ${getBgColor()} ${className}`}>
+    <div className={`mobile-container pb-20 ${getBgColor()} ${className}`}>
       {children}
     </div>
   );

@@ -12,6 +12,7 @@ import ExplorePage from "./pages/ExplorePage";
 import NotFound from "./pages/NotFound";
 import OnboardingPage from "./pages/OnboardingPage";
 import LoginPage from "./pages/LoginPage";
+import BottomNav from "./components/navigation/BottomNav";
 
 const queryClient = new QueryClient();
 
@@ -21,16 +22,19 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/new-project" element={<NewProjectPage />} />
-          <Route path="/project/:id" element={<ProjectDetailPage />} />
-          <Route path="/explore" element={<ExplorePage />} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <div className="pb-16"> {/* Add padding to bottom to accommodate the nav bar */}
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/new-project" element={<NewProjectPage />} />
+            <Route path="/project/:id" element={<ProjectDetailPage />} />
+            <Route path="/explore" element={<ExplorePage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <BottomNav />
+        </div>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
