@@ -1,3 +1,4 @@
+
 export function validateEnvironmentVariables() {
   const requiredVars = {
     VITE_CLERK_PUBLISHABLE_KEY: import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
@@ -12,9 +13,17 @@ export function validateEnvironmentVariables() {
     .map(([key]) => key);
 
   if (missingVars.length > 0) {
+    console.error(`Missing required environment variables: ${missingVars.join(', ')}`);
+    
+    if (missingVars.includes('VITE_CLERK_PUBLISHABLE_KEY')) {
+      throw new Error(
+        'Missing VITE_CLERK_PUBLISHABLE_KEY. Please add it to your .env file.'
+      );
+    }
+    
     throw new Error(
       `Missing required environment variables: ${missingVars.join(', ')}\n` +
       'Please check your .env file and make sure all required variables are set.'
     );
   }
-} 
+}
