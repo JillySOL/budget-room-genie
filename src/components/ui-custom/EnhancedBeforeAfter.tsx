@@ -27,6 +27,7 @@ const EnhancedBeforeAfter = ({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
+      {/* Fixed position labels */}
       <div className="absolute top-3 left-3 z-10 bg-black/70 text-white px-3 py-1 rounded-md text-xs font-medium shadow-sm">
         {beforeLabel}
       </div>
@@ -62,9 +63,10 @@ const EnhancedBeforeAfter = ({
         }
       />
       
+      {/* Tooltip hint */}
       {!isHovering && (
-        <TooltipProvider>
-          <Tooltip defaultOpen>
+        <TooltipProvider delayDuration={0}>
+          <Tooltip>
             <TooltipTrigger asChild>
               <div className="absolute bottom-3 left-0 right-0 flex justify-center pointer-events-none">
                 <div className="bg-black/40 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 animate-pulse">
