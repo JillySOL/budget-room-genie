@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useUser, useAuth } from '@clerk/clerk-react';
+import { useAuth } from "@clerk/clerk-react"; // Add Clerk import
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -13,13 +13,20 @@ interface SubscriptionCheckoutProps {
 
 export function SubscriptionCheckout({ onSuccess }: SubscriptionCheckoutProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useUser();
-  const { getToken } = useAuth();
+  const { userId, getToken } = useAuth(); // Use Clerk hook
 
   const handleSubscribe = async () => {
     setIsLoading(true);
     try {
-      const token = await getToken();
+      const token = await getToken(); // Get Clerk token
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      if (!userId) { // Add check for userId
+        throw new Error('User not authenticated');
+      }
+      
       const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/create-checkout-session`, {
         method: 'POST',
         headers: {
@@ -27,7 +34,7 @@ export function SubscriptionCheckout({ onSuccess }: SubscriptionCheckoutProps) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId: user?.id,
+          userId: userId,
           priceId: import.meta.env.VITE_STRIPE_PRICE_ID,
         }),
       });

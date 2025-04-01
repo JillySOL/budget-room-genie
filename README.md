@@ -1,149 +1,165 @@
-# RenoMate MVP 2.0
+# RenoMate - Modern Web Architecture
 
-RenoMate is an AI-powered room redesign application that helps users transform their living spaces using advanced AI technology.
+## Overview
+RenoMate is a web application that uses AI to generate room renovation designs. The application is built using a modern tech stack, combining Clerk for authentication, AWS for backend services, and React for the frontend.
 
-## Features
+## Architecture
 
-- Real image upload functionality
-- AI-powered room redesigns using GPT-4 Vision and DALL-E
-- User authentication with email magic links
-- Freemium model with subscription support
-- Project saving and management
-- Secure AWS infrastructure
+### Frontend
+- **Framework**: React with TypeScript
+- **UI Components**: Radix UI + Tailwind CSS
+- **Authentication**: Clerk
+- **Storage**: AWS S3 for image uploads
+- **Routing**: React Router
+- **Styling**: Tailwind CSS with custom RenoMate theme
 
-## Prerequisites
+### Backend
+- **API**: AWS API Gateway (HTTP API)
+- **Compute**: AWS Lambda
+- **Database**: Amazon Aurora Serverless v2 (Postgres)
+- **Authentication**: Clerk
+- **Storage**: Amazon S3
+- **Infrastructure as Code**: AWS CDK (TypeScript)
 
-- Node.js 18.x or later
-- AWS CLI configured with appropriate credentials
-- AWS CDK CLI installed globally (`npm install -g aws-cdk`)
-- Stripe account with API keys
-- OpenAI API key
+### Key Components
 
-## Project Structure
+#### Authentication Flow
+1. User signs up/signs in through Clerk UI
+2. Clerk handles authentication and session management
+3. Frontend receives Clerk session token
+4. API Gateway validates tokens using Clerk JWT verification
+5. Lambda functions receive user context in the event
 
+#### Database Schema
+```sql
+-- Users table
+CREATE TABLE users (
+  user_id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  is_pro BOOLEAN DEFAULT FALSE,
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Projects table
+CREATE TABLE projects (
+  project_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL REFERENCES users(user_id),
+  title TEXT NOT NULL,
+  room_type TEXT NOT NULL,
+  style TEXT NOT NULL,
+  budget_range TEXT NOT NULL,
+  suggestions JSONB,
+  cost_estimate INTEGER,
+  value_gain INTEGER,
+  render_s3_key TEXT,
+  original_s3_key TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Render logs table
+CREATE TABLE render_logs (
+  log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL REFERENCES users(user_id),
+  project_id UUID REFERENCES projects(project_id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 ```
-renomate/
-├── src/                    # Frontend React application
-├── infrastructure/         # AWS CDK infrastructure code
-│   ├── bin/               # CDK app entry point
-│   ├── lib/               # CDK stack definitions
-│   └── lambda/            # Lambda functions
-│       ├── ai-proxy/      # AI request handler
-│       └── stripe-webhook/# Stripe webhook handler
-└── package.json           # Root package.json
-```
 
-## Setup
+#### API Endpoints
+- `POST /ai` - AI design generation (protected)
+- `POST /webhook` - Stripe webhook handler
+- `POST /projects` - Save project (protected)
+- `GET /projects` - List user's projects (protected)
 
-1. Install dependencies:
+### Infrastructure
+
+#### VPC Configuration
+- VPC with 2 AZs
+- Private subnets with NAT Gateway
+- Security groups for Lambda and Aurora
+
+#### Lambda Functions
+1. **AI Proxy Function**
+   - Interfaces with OpenAI API
+   - Manages image generation
+   - Handles freemium logic
+
+2. **Stripe Webhook Function**
+   - Processes subscription events
+   - Updates user pro status
+   - Manages subscription lifecycle
+
+3. **DB Init Function**
+   - Initializes database schema
+   - Creates required tables and indexes
+   - Runs as custom resource in CDK
+
+### Security
+- All API endpoints require Clerk authentication
+- S3 bucket with CORS configuration
+- Secrets stored in AWS Secrets Manager
+- VPC isolation for database and Lambda functions
+- IAM roles with least privilege principle
+
+### Development Setup
+
+1. **Prerequisites**
    ```bash
-   # Install frontend dependencies
-   npm install
+   # Install AWS CDK
+   npm install -g aws-cdk
 
-   # Install infrastructure dependencies
-   cd infrastructure
-   npm install
-
-   # Install Lambda function dependencies
-   cd lambda
+   # Install project dependencies
    npm install
    ```
 
-2. Configure environment variables:
-   Create a `.env` file in the root directory with the following variables:
-   ```
-   AWS_REGION=ap-southeast-2
-   AWS_ACCOUNT=your-aws-account-id
-   STRIPE_SECRET_KEY=your-stripe-secret-key
-   STRIPE_WEBHOOK_SECRET=your-stripe-webhook-secret
-   OPENAI_API_KEY=your-openai-api-key
+2. **Environment Variables**
+   ```env
+   # Frontend
+   VITE_CLERK_PUBLISHABLE_KEY=your-clerk-publishable-key
+   VITE_AWS_REGION=your-region
+   VITE_AWS_ACCESS_KEY_ID=your-access-key
+   VITE_AWS_SECRET_ACCESS_KEY=your-secret-key
+   VITE_S3_BUCKET_NAME=your-bucket-name
+   VITE_API_ENDPOINT=your-api-endpoint
+
+   # Backend
+   AWS_REGION=your-region
+   AWS_ACCOUNT=your-account-id
    ```
 
-3. Deploy infrastructure:
+3. **Deployment**
    ```bash
+   # Deploy infrastructure
    cd infrastructure
-   npm run build
    cdk deploy
-   ```
 
-4. Configure Stripe:
-   - Create a subscription product in your Stripe dashboard
-   - Set up a webhook endpoint pointing to your API Gateway URL
-   - Update the webhook secret in AWS Secrets Manager
-
-5. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-## Development
-
-### Frontend Development
-
-The frontend is built with React, TypeScript, and Tailwind CSS. Key features:
-
-- Image upload with S3 integration
-- User authentication with Cognito
-- Subscription management with Stripe
-- Project management and storage
-
-### Backend Development
-
-The backend infrastructure is managed with AWS CDK and includes:
-
-- API Gateway endpoints
-- Lambda functions for AI and webhook handling
-- DynamoDB tables for data storage
-- S3 bucket for image storage
-- Cognito for user authentication
-- Secrets Manager for API keys
-
-### Lambda Functions
-
-The application includes two main Lambda functions:
-
-1. AI Proxy Function:
-   - Handles image uploads and AI requests
-   - Integrates with OpenAI's GPT-4 Vision and DALL-E
-   - Manages user quotas and subscription status
-
-2. Stripe Webhook Function:
-   - Processes Stripe webhook events
-   - Updates user subscription status
-   - Handles payment failures and subscription cancellations
-
-## Deployment
-
-1. Build and deploy infrastructure:
-   ```bash
-   cd infrastructure
+   # Build and deploy frontend
+   cd ..
    npm run build
-   cdk deploy
    ```
 
-2. Build and deploy frontend:
-   ```bash
-   npm run build
-   # Deploy the contents of the dist directory to your hosting service
-   ```
+### Cost Optimization
+- Aurora Serverless v2 scales to zero when inactive
+- Lambda functions use appropriate memory sizes
+- S3 lifecycle policies for image cleanup
+- CloudFront for static content delivery
 
-## Security
-
-- All API endpoints are secured with Cognito authentication
-- API keys are stored in AWS Secrets Manager
-- S3 bucket access is restricted to authenticated users
-- Stripe webhook signatures are verified
-- Data is encrypted at rest and in transit
-
-## Monitoring and Logging
-
+### Monitoring and Logging
 - CloudWatch Logs for Lambda functions
-- CloudWatch Metrics for API Gateway and DynamoDB
-- Stripe Dashboard for payment monitoring
-- Custom metrics for user engagement and AI usage
+- CloudWatch Metrics for API Gateway
+- Aurora performance insights
+- S3 access logs
+
+### Future Improvements
+1. Implement CloudFront for API caching
+2. Add DynamoDB for high-frequency operations
+3. Set up AWS WAF for API protection
+4. Implement AWS Backup for database
+5. Add AWS X-Ray for tracing
 
 ## Contributing
-
 1. Fork the repository
 2. Create a feature branch
 3. Commit your changes
@@ -151,5 +167,4 @@ The application includes two main Lambda functions:
 5. Create a Pull Request
 
 ## License
-
 This project is licensed under the MIT License - see the LICENSE file for details.

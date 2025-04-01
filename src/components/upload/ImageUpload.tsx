@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useAuth } from "@clerk/clerk-react"; // Add Clerk import
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -23,7 +23,7 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user } = useUser();
+  const { userId } = useAuth(); // Use Clerk hook
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -54,10 +54,14 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
       toast.error('AWS configuration is missing. Please check your environment variables.');
       return;
     }
+    if (!userId) { // Add check for userId
+      toast.error('User not authenticated. Cannot upload image.');
+      return;
+    }
 
     setIsUploading(true);
     try {
-      const key = `uploads/${user?.id}/${Date.now()}-${file.name}`;
+      const key = `uploads/${userId}/${Date.now()}-${file.name}`; // New key with userId
       const command = new PutObjectCommand({
         Bucket: import.meta.env.VITE_S3_BUCKET_NAME,
         Key: key,

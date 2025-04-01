@@ -1,10 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { Home, Search, Percent, User } from "lucide-react";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@clerk/clerk-react";
 
 export const BottomNav = () => {
   const location = useLocation();
-  const { isSignedIn } = useUser();
+  const { isSignedIn } = useAuth();
   
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -22,10 +22,12 @@ export const BottomNav = () => {
         <span className={`text-xs mt-1 ${isActive('/explore') ? 'text-budget-accent font-medium' : 'text-gray-500'}`}>Explore</span>
       </Link>
       
-      <Link to="/projects" className="flex flex-col items-center">
-        <Percent className={`h-6 w-6 ${isActive('/projects') ? 'text-budget-accent' : 'text-gray-500'}`} />
-        <span className={`text-xs mt-1 ${isActive('/projects') ? 'text-budget-accent font-medium' : 'text-gray-500'}`}>Projects</span>
-      </Link>
+      {isSignedIn && (
+        <Link to="/projects" className="flex flex-col items-center">
+          <Percent className={`h-6 w-6 ${isActive('/projects') ? 'text-budget-accent' : 'text-gray-500'}`} />
+          <span className={`text-xs mt-1 ${isActive('/projects') ? 'text-budget-accent font-medium' : 'text-gray-500'}`}>Projects</span>
+        </Link>
+      )}
       
       <Link to={isSignedIn ? "/profile" : "/sign-in"} className="flex flex-col items-center">
         <User className={`h-6 w-6 ${isActive('/profile') || isActive('/sign-in') ? 'text-budget-accent' : 'text-gray-500'}`} />

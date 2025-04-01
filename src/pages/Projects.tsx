@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowRight } from "lucide-react";
-import { LoadingPage, LoadingCard } from "@/components/ui/loading";
-import { useUser } from "@clerk/clerk-react";
+import { LoadingPage } from "@/components/ui/loading";
+import { useAuth } from "@clerk/clerk-react";
 
 // This will be replaced with real data from the user's account
 const MOCK_PROJECTS = [
@@ -27,14 +27,14 @@ const MOCK_PROJECTS = [
 ];
 
 const Projects = () => {
-  const { isSignedIn, isLoaded } = useUser();
+  const { isLoaded, isSignedIn } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
 
   // Simulate loading state
-  useState(() => {
+  useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1000);
     return () => clearTimeout(timer);
-  });
+  }, []);
 
   if (!isLoaded || isLoading) {
     return <LoadingPage />;

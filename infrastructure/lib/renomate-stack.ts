@@ -7,6 +7,7 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 
 export class RenoMateStack extends cdk.Stack {
@@ -114,30 +115,162 @@ export class RenoMateStack extends cdk.Stack {
         },
       },
       passwordPolicy: {
-        minLength: 8,
-        requireLowercase: true,
-        requireUppercase: true,
-        requireDigits: true,
-        requireSymbols: true,
+        minLength: 6,
+        requireLowercase: false,
+        requireUppercase: false,
+        requireDigits: false,
+        requireSymbols: false,
       },
+      signInCaseSensitive: false,
+      userVerification: {
+        emailSubject: 'Welcome to RenoMate - Verify your email',
+        emailBody: 'Thanks for signing up! Click the link below to verify your email and sign in to RenoMate:\n\n{##Verify Email##}\n\nIf you did not create this account, please ignore this email.',
+        emailStyle: cognito.VerificationEmailStyle.LINK,
+      },
+      email: cognito.UserPoolEmail.withCognito('noreply@renomate.com'),
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      customAttributes: {
+        isPasswordless: new cognito.BooleanAttribute({ mutable: true }),
+      },
     });
 
-    // Create Cognito App Client
+    // Create Lambda function for custom auth challenge
+    const createAuthChallengeFn = new lambda.Function(this, 'CreateAuthChallenge', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/auth/create-auth-challenge'),
+      environment: {
+        USER_POOL_ID: userPool.userPoolId,
+        APP_URL: process.env.APP_URL || 'http://localhost:8080',
+        LOGO_URL: process.env.LOGO_URL || '',
+        SENDER_EMAIL: process.env.SENDER_EMAIL || 'noreply@renomate.com',
+        ENVIRONMENT: process.env.ENVIRONMENT || 'development',
+      },
+      timeout: cdk.Duration.seconds(30),
+    });
+
+    // Grant SES permissions to send emails
+    createAuthChallengeFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+        resources: ['*'], // Restrict to specific ARN in production
+      })
+    );
+
+    // Grant CloudWatch permissions for metrics
+    createAuthChallengeFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['cloudwatch:PutMetricData'],
+        resources: ['*'],
+      })
+    );
+
+    // Create CloudWatch Dashboard
+    const dashboard = new cloudwatch.Dashboard(this, 'AuthDashboard', {
+      dashboardName: 'RenoMate-Auth-Metrics',
+    });
+
+    // Add widgets to dashboard
+    dashboard.addWidgets(
+      new cloudwatch.GraphWidget({
+        title: 'Magic Link Authentication',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'RenoMate/Auth',
+            metricName: 'MagicLinkEmailSent',
+            statistic: 'sum',
+            period: cdk.Duration.minutes(1),
+          }),
+          new cloudwatch.Metric({
+            namespace: 'RenoMate/Auth',
+            metricName: 'MagicLinkError',
+            statistic: 'sum',
+            period: cdk.Duration.minutes(1),
+          }),
+        ],
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Email Latency',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'RenoMate/Auth',
+            metricName: 'MagicLinkEmailLatency',
+            statistic: 'average',
+            period: cdk.Duration.minutes(1),
+          }),
+        ],
+      })
+    );
+
+    // Create CloudWatch Alarms
+    new cloudwatch.Alarm(this, 'MagicLinkErrorAlarm', {
+      metric: new cloudwatch.Metric({
+        namespace: 'RenoMate/Auth',
+        metricName: 'MagicLinkError',
+        statistic: 'sum',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 5,
+      evaluationPeriods: 1,
+      alarmDescription: 'Alert when there are multiple magic link errors',
+    });
+
+    new cloudwatch.Alarm(this, 'EmailLatencyAlarm', {
+      metric: new cloudwatch.Metric({
+        namespace: 'RenoMate/Auth',
+        metricName: 'MagicLinkEmailLatency',
+        statistic: 'average',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 5000, // 5 seconds
+      evaluationPeriods: 1,
+      alarmDescription: 'Alert when email sending latency is too high',
+    });
+
+    const defineAuthChallengeFn = new lambda.Function(this, 'DefineAuthChallenge', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/auth/define-auth-challenge'),
+    });
+
+    const verifyAuthChallengeFn = new lambda.Function(this, 'VerifyAuthChallenge', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/auth/verify-auth-challenge'),
+    });
+
+    // Add Lambda triggers to User Pool
+    userPool.addTrigger(
+      cognito.UserPoolOperation.CREATE_AUTH_CHALLENGE,
+      createAuthChallengeFn
+    );
+    userPool.addTrigger(
+      cognito.UserPoolOperation.DEFINE_AUTH_CHALLENGE,
+      defineAuthChallengeFn
+    );
+    userPool.addTrigger(
+      cognito.UserPoolOperation.VERIFY_AUTH_CHALLENGE_RESPONSE,
+      verifyAuthChallengeFn
+    );
+
+    // Create app client for passwordless auth
     const userPoolClient = new cognito.UserPoolClient(this, 'RenoMateUserPoolClient', {
       userPool,
-      userPoolClientName: 'renomate-client',
       authFlows: {
+        adminUserPassword: true,
+        custom: true,
         userPassword: true,
+        userSrp: true,
       },
       oAuth: {
         flows: {
           implicitCodeGrant: true,
         },
-        scopes: [cognito.OAuthScope.EMAIL, cognito.OAuthScope.OPENID],
-        callbackUrls: ['http://localhost:5173'], // Update with your frontend URL
-        logoutUrls: ['http://localhost:5173'], // Update with your frontend URL
+        scopes: [cognito.OAuthScope.EMAIL, cognito.OAuthScope.OPENID, cognito.OAuthScope.PROFILE],
+        callbackUrls: [process.env.APP_URL || 'http://localhost:8080'],
       },
     });
 

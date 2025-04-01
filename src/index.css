@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -73,7 +72,7 @@
   }
 
   body {
-    @apply bg-budget-light text-foreground min-h-screen;
+    @apply bg-background text-foreground min-h-screen;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
   
@@ -104,16 +103,16 @@
   }
 
   .category-item {
-    @apply flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow-sm border border-gray-100 hover:border-budget-teal/50 transition-all;
+    @apply flex flex-col items-center justify-center p-4 bg-card rounded-lg shadow-sm border border-border hover:border-budget-accent/50 transition-all;
   }
 
   /* Common tag classes */
   .diy-tag {
-    @apply bg-budget-yellow/20 text-budget-accent text-xs font-medium rounded-full px-2 py-0.5;
+    @apply bg-accent/20 text-accent text-xs font-medium rounded-full px-2 py-0.5;
   }
 
   .value-tag {
-    @apply bg-budget-teal/10 text-budget-teal text-xs font-medium rounded-full px-2 py-0.5;
+    @apply bg-primary/10 text-primary text-xs font-medium rounded-full px-2 py-0.5;
   }
   
   /* Spacing and layout */
@@ -128,12 +127,7 @@
   
   /* Common button style */
   .cta-button {
-    @apply bg-budget-accent text-white font-medium rounded-lg px-4 py-3 w-full flex items-center justify-center gap-2 hover:bg-budget-accent/90 transition-colors;
-  }
-  
-  /* Animation utilities */
-  .animate-fade-in {
-    @apply animate-[fade-in_0.5s_ease-out];
+    @apply bg-budget-accent text-white font-medium rounded-lg px-4 py-3 w-full flex items-center justify-center gap-2 hover:bg-budget-accent-dark transition-colors;
   }
   
   /* Hide scrollbar for various browsers */

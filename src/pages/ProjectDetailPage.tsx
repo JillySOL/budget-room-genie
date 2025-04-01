@@ -10,7 +10,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@clerk/clerk-react";
 import { LoadingPage } from "@/components/ui/loading";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -111,7 +111,7 @@ const PROJECTS = {
 
 const ProjectDetailPage = () => {
   const { id } = useParams();
-  const { isSignedIn } = useUser();
+  const { isSignedIn } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const project = PROJECTS[id as keyof typeof PROJECTS];
   
