@@ -4,17 +4,6 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 import type { Appearance } from '@clerk/types';
 import React from 'react';
 
-// Development mode warning component
-const DevelopmentModeWarning = () => (
-  <div className="flex items-center gap-2 bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full text-sm font-medium group">
-    <AlertCircle className="h-4 w-4" />
-    Development Mode
-    <div className="absolute invisible group-hover:visible bg-white border border-gray-200 shadow-lg rounded-md p-2 text-xs w-48 top-full mt-1 right-0 z-10">
-      This is a non-production environment for testing purposes only.
-    </div>
-  </div>
-);
-
 // Shared Appearance configuration
 const appearance: Appearance = {
   baseTheme: undefined, // Use default theme as base
@@ -131,9 +120,6 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
         >
           <ArrowLeft className="h-5 w-5 text-gray-600" />
         </button>
-        <div className="relative">
-          <DevelopmentModeWarning />
-        </div>
       </div>
 
       {/* Clerk Component (SignIn or SignUp) */}
@@ -150,8 +136,8 @@ export const ClerkAuth = () => {
     <AuthLayout>
       <SignIn 
         appearance={appearance}
-        afterSignInUrl="/"
-        afterSignUpUrl="/"
+        afterSignInUrl={window.location.origin}
+        afterSignUpUrl={window.location.origin}
         signUpUrl="/sign-up"
       />
     </AuthLayout>
@@ -164,8 +150,8 @@ export const ClerkSignUp = () => {
     <AuthLayout>
       <SignUp 
         appearance={appearance}
-        afterSignUpUrl="/"
-        afterSignInUrl="/"
+        afterSignUpUrl={window.location.origin}
+        afterSignInUrl={window.location.origin}
         signInUrl="/sign-in"
       />
     </AuthLayout>
