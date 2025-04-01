@@ -1,69 +1,155 @@
-# Welcome to your Lovable project
+# RenoMate MVP 2.0
 
-## Project info
+RenoMate is an AI-powered room redesign application that helps users transform their living spaces using advanced AI technology.
 
-**URL**: https://lovable.dev/projects/73a400af-543c-4121-a5e0-d12c2ba9450a
+## Features
 
-## How can I edit this code?
+- Real image upload functionality
+- AI-powered room redesigns using GPT-4 Vision and DALL-E
+- User authentication with email magic links
+- Freemium model with subscription support
+- Project saving and management
+- Secure AWS infrastructure
 
-There are several ways of editing your application.
+## Prerequisites
 
-**Use Lovable**
+- Node.js 18.x or later
+- AWS CLI configured with appropriate credentials
+- AWS CDK CLI installed globally (`npm install -g aws-cdk`)
+- Stripe account with API keys
+- OpenAI API key
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/73a400af-543c-4121-a5e0-d12c2ba9450a) and start prompting.
+## Project Structure
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+renomate/
+├── src/                    # Frontend React application
+├── infrastructure/         # AWS CDK infrastructure code
+│   ├── bin/               # CDK app entry point
+│   ├── lib/               # CDK stack definitions
+│   └── lambda/            # Lambda functions
+│       ├── ai-proxy/      # AI request handler
+│       └── stripe-webhook/# Stripe webhook handler
+└── package.json           # Root package.json
 ```
 
-**Edit a file directly in GitHub**
+## Setup
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Install dependencies:
+   ```bash
+   # Install frontend dependencies
+   npm install
 
-**Use GitHub Codespaces**
+   # Install infrastructure dependencies
+   cd infrastructure
+   npm install
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+   # Install Lambda function dependencies
+   cd lambda
+   npm install
+   ```
 
-## What technologies are used for this project?
+2. Configure environment variables:
+   Create a `.env` file in the root directory with the following variables:
+   ```
+   AWS_REGION=ap-southeast-2
+   AWS_ACCOUNT=your-aws-account-id
+   STRIPE_SECRET_KEY=your-stripe-secret-key
+   STRIPE_WEBHOOK_SECRET=your-stripe-webhook-secret
+   OPENAI_API_KEY=your-openai-api-key
+   ```
 
-This project is built with .
+3. Deploy infrastructure:
+   ```bash
+   cd infrastructure
+   npm run build
+   cdk deploy
+   ```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+4. Configure Stripe:
+   - Create a subscription product in your Stripe dashboard
+   - Set up a webhook endpoint pointing to your API Gateway URL
+   - Update the webhook secret in AWS Secrets Manager
 
-## How can I deploy this project?
+5. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-Simply open [Lovable](https://lovable.dev/projects/73a400af-543c-4121-a5e0-d12c2ba9450a) and click on Share -> Publish.
+## Development
 
-## I want to use a custom domain - is that possible?
+### Frontend Development
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+The frontend is built with React, TypeScript, and Tailwind CSS. Key features:
+
+- Image upload with S3 integration
+- User authentication with Cognito
+- Subscription management with Stripe
+- Project management and storage
+
+### Backend Development
+
+The backend infrastructure is managed with AWS CDK and includes:
+
+- API Gateway endpoints
+- Lambda functions for AI and webhook handling
+- DynamoDB tables for data storage
+- S3 bucket for image storage
+- Cognito for user authentication
+- Secrets Manager for API keys
+
+### Lambda Functions
+
+The application includes two main Lambda functions:
+
+1. AI Proxy Function:
+   - Handles image uploads and AI requests
+   - Integrates with OpenAI's GPT-4 Vision and DALL-E
+   - Manages user quotas and subscription status
+
+2. Stripe Webhook Function:
+   - Processes Stripe webhook events
+   - Updates user subscription status
+   - Handles payment failures and subscription cancellations
+
+## Deployment
+
+1. Build and deploy infrastructure:
+   ```bash
+   cd infrastructure
+   npm run build
+   cdk deploy
+   ```
+
+2. Build and deploy frontend:
+   ```bash
+   npm run build
+   # Deploy the contents of the dist directory to your hosting service
+   ```
+
+## Security
+
+- All API endpoints are secured with Cognito authentication
+- API keys are stored in AWS Secrets Manager
+- S3 bucket access is restricted to authenticated users
+- Stripe webhook signatures are verified
+- Data is encrypted at rest and in transit
+
+## Monitoring and Logging
+
+- CloudWatch Logs for Lambda functions
+- CloudWatch Metrics for API Gateway and DynamoDB
+- Stripe Dashboard for payment monitoring
+- Custom metrics for user engagement and AI usage
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

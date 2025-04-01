@@ -1,9 +1,10 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { Home, Search, Percent, User } from "lucide-react";
+import { useUser } from "@clerk/clerk-react";
 
-const BottomNav = () => {
+export const BottomNav = () => {
   const location = useLocation();
+  const { isSignedIn } = useUser();
   
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -26,12 +27,12 @@ const BottomNav = () => {
         <span className={`text-xs mt-1 ${isActive('/projects') ? 'text-budget-accent font-medium' : 'text-gray-500'}`}>Projects</span>
       </Link>
       
-      <Link to="/login" className="flex flex-col items-center">
-        <User className={`h-6 w-6 ${isActive('/login') ? 'text-budget-accent' : 'text-gray-500'}`} />
-        <span className={`text-xs mt-1 ${isActive('/login') ? 'text-budget-accent font-medium' : 'text-gray-500'}`}>Profile</span>
+      <Link to={isSignedIn ? "/profile" : "/sign-in"} className="flex flex-col items-center">
+        <User className={`h-6 w-6 ${isActive('/profile') || isActive('/sign-in') ? 'text-budget-accent' : 'text-gray-500'}`} />
+        <span className={`text-xs mt-1 ${isActive('/profile') || isActive('/sign-in') ? 'text-budget-accent font-medium' : 'text-gray-500'}`}>
+          {isSignedIn ? 'Profile' : 'Sign In'}
+        </span>
       </Link>
     </div>
   );
 };
-
-export default BottomNav;
