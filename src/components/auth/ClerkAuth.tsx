@@ -1,6 +1,6 @@
 import { SignIn, SignUp } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import type { Appearance } from '@clerk/types';
 import React from 'react';
 
@@ -111,7 +111,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
       {/* Decorative background pattern */}
       <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
       
-      {/* Header with Back Button and Dev Warning */}
+      {/* Header with Back Button */}
       <div className="w-full max-w-md mb-8 flex items-center justify-between absolute top-4 left-1/2 transform -translate-x-1/2 px-4">
         <button 
           onClick={() => navigate(-1)}
