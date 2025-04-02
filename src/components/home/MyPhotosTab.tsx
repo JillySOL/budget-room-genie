@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertCircle, CameraOff } from "lucide-react";
+import { Loader2, AlertCircle, CameraOff, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useFetchUserPhotos } from "@/hooks/useFetchUserPhotos";
 
@@ -40,18 +40,28 @@ const MyPhotosTab = () => {
   }
 
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-      {photos.map((photo) => (
-        <div key={photo.key} className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative group">
-          <img
-            src={photo.url}
-            alt="User uploaded room photo"
-            className="w-full h-full object-cover"
-            onError={(e) => (e.currentTarget.src = '/placeholder-image.svg')} // Consider a better placeholder
-          />
-          {/* Optional: Add overlay/actions on hover */}
-        </div>
-      ))}
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/new-project" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            Upload More
+          </Link>
+        </Button>
+      </div>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+        {photos.map((photo) => (
+          <div key={photo.key} className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative group">
+            <img
+              src={photo.url}
+              alt="User uploaded room photo"
+              className="w-full h-full object-cover"
+              onError={(e) => (e.currentTarget.src = '/placeholder-image.svg')} // Consider a better placeholder
+            />
+            {/* Optional: Add overlay/actions on hover */}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

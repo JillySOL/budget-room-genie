@@ -336,12 +336,29 @@ export class RenoMateStack extends cdk.Stack {
       },
     });
 
+    // Create Clerk JWT Authorizer
+    const clerkAuthorizer = new apigateway.TokenAuthorizer(this, 'ClerkAuthorizer', {
+      handler: new lambda.Function(this, 'ClerkAuthorizerFunction', {
+        runtime: lambda.Runtime.NODEJS_18_X,
+        handler: 'index.handler',
+        code: lambda.Code.fromAsset('lambda/clerk-authorizer'),
+        environment: {
+          CLERK_SECRET_KEY_NAME: 'renomate/clerk-secret-key',
+        },
+      }),
+    });
+
     // Create Cognito Authorizer
     const cognitoAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'CognitoAuthorizer', {
       cognitoUserPools: [userPool],
     });
 
     // Add API endpoints
+    const generateUploadUrlEndpoint = api.root.addResource('generate-upload-url');
+    generateUploadUrlEndpoint.addMethod('POST', new apigateway.LambdaIntegration(generatePresignedUrlFunction), {
+      authorizer: clerkAuthorizer,
+    });
+
     const aiEndpoint = api.root.addResource('ai');
     aiEndpoint.addMethod('POST', new apigateway.LambdaIntegration(aiProxyFunction), {
       authorizer: cognitoAuthorizer,

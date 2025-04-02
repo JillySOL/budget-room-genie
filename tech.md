@@ -101,13 +101,14 @@ These tasks should be tackled sequentially where dependencies exist. Each task s
 
 **Task 3: AWS Setup - Lambda Functions** `[IN PROGRESS]`
 *   **Goal:** Create the backend logic functions. Choose a runtime (Node.js or Python are good choices).
+*   **NOTE:** Lambda function code is primarily managed and deployed directly within the AWS Console/environment, not necessarily checked into this repository.
 *   **Steps:**
     *   **Runtime Chosen:** Node.js 20.x
     *   **Lambda A (GeneratePresignedUrl):**
         *   `[x]` Function `RenoMate-GeneratePresignedUrl` created (Node.js 20.x).
         *   `[x]` Role `RenoMate-GeneratePresignedUrl-LambdaRole` assigned.
-        *   `[ ]` Add API Gateway trigger (in Task 4).
-        *   `[ ]` Implement code logic.
+        *   `[x]` API Gateway trigger configured (verified via endpoint functionality).
+        *   `[CHECK DEPLOYMENT]` Implement code logic (Code exists and *appears* correct, but verify deployed version).
     *   **Lambda B (ProcessImage & OpenAI):**
         *   `[x]` Function `RenoMate-ProcessImage` created (Node.js 20.x).
         *   `[x]` Role `RenoMate-ProcessImage-LambdaRole` assigned.
@@ -123,14 +124,19 @@ These tasks should be tackled sequentially where dependencies exist. Each task s
 
 **Task 4: AWS Setup - API Gateway** `[IN PROGRESS]`
 *   **Goal:** Create the HTTP interface between the frontend and backend Lambdas.
+*   **NOTE:** API Gateway configuration might be managed partially or fully via the AWS Console if not completely defined in the CDK stack.
 *   **Steps:**
     *   `[x]` Create HTTP API (`https://jiov4el7d0.execute-api.ap-southeast-2.amazonaws.com`).
     *   `[x]` Define routes:
         *   `[x]` `POST /generate-upload-url` -> `RenoMate-GeneratePresignedUrl`.
-        *   `[x]` `POST /start-generation` -> `RenoMate-ProcessImage` (assumes Lambda B handles API + S3 triggers).
+        *   `[x]` `GET /my-photos` -> `RenoMate-ListUserPhotos`.
+        *   `[x]` `POST /start-generation` -> `RenoMate-ProcessImage` (assuming Lambda B handles API + S3 triggers).
         *   `[x]` `GET /generation-status/{jobId}` -> `RenoMate-GetStatusResult`.
     *   `[ ]` Configure request/response mapping (if needed beyond basic proxy integration).
-    *   `[ ]` Configure authorization (e.g., JWT Authorizer for Clerk).
+    *   `[IN PROGRESS]` Configure authorization:
+        *   `[x]` Clerk JWT Authorizer Created.
+        *   `[x]` Authorizer attached to `GET /my-photos` (Verified working).
+        *   `[PENDING]` **Attach Clerk JWT Authorizer to `POST /generate-upload-url` route.** (This is the missing step causing user association issues).
     *   `[x]` Enable CORS for the API Gateway stage.
 
 **Task 5: Frontend - Image Upload Integration** `[IN PROGRESS]`
@@ -149,9 +155,9 @@ These tasks should be tackled sequentially where dependencies exist. Each task s
 
 *   **Frontend - Required Changes:**
     1.  **User Association:**
-        *   `[COMPLETED]` In the component handling the upload (e.g., `RoomPhotoUpload.tsx`), use the `useAuth` hook from `@clerk/clerk-react` to get the `userId` and `getToken`.
-        *   `[COMPLETED]` Modify the call to `POST /generate-upload-url` to include the `userId` in the request body.
-        *   `[PENDING]` **Backend:** Ensure Lambda A (`RenoMate-GeneratePresignedUrl`) reads the `userId` from the request body and uses it to construct the S3 key: `uploads/{userId}/{fileName}`. *(This requires a separate backend update)*
+        *   `[COMPLETED]` Frontend sends `userId` in request body (currently unused by backend).
+        *   `[COMPLETED]` Frontend sends Authorization header with Clerk JWT.
+        *   `[FIX REQUIRED]` **Backend:** Lambda A (`RenoMate-GeneratePresignedUrl`) code correctly reads `userId` from authorizer context (`event.requestContext.authorizer.jwt.claims.sub`), BUT the context is missing because the authorizer is **not attached** to the `POST /generate-upload-url` route in API Gateway. Needs API Gateway configuration update.
     2.  **Upload Flow UI Enhancement (`NewProject.tsx` / `RoomPhotoUpload.tsx`):**
         *   `[ ]` After image capture/selection, display a "Preview Your Photo" step.
         *   `[ ]` This step should show the selected image preview.

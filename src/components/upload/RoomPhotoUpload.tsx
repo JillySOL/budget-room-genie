@@ -110,7 +110,7 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
 
     try {
       // Get the JWT token from Clerk
-      const token = await getToken();
+      const token = await getToken({ template: "RenoMateBackendAPI" });
       if (!token) {
         throw new Error('Authentication required');
       }
