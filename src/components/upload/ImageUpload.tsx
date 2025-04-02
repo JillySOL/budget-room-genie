@@ -1,19 +1,8 @@
 import { useState, useRef } from 'react';
-import { useAuth } from "@clerk/clerk-react"; // Add Clerk import
+import { useAuth } from "@clerk/clerk-react";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-
-// Only initialize S3 client if we have the required environment variables
-const s3Client = import.meta.env.VITE_AWS_REGION ? new S3Client({
-  region: import.meta.env.VITE_AWS_REGION,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: import.meta.env.VITE_AWS_SECRET_ACCESS_KEY || '',
-  },
-}) : null;
 
 interface ImageUploadProps {
   onUploadComplete: (imageUrl: string) => void;
@@ -23,7 +12,7 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { userId } = useAuth(); // Use Clerk hook
+  const { getToken } = useAuth();
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -50,27 +39,35 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
   };
 
   const handleUpload = async (file: File) => {
-    if (!s3Client) {
-      toast.error('AWS configuration is missing. Please check your environment variables.');
-      return;
-    }
-    if (!userId) { // Add check for userId
-      toast.error('User not authenticated. Cannot upload image.');
-      return;
-    }
-
     setIsUploading(true);
     try {
-      const key = `uploads/${userId}/${Date.now()}-${file.name}`; // New key with userId
-      const command = new PutObjectCommand({
-        Bucket: import.meta.env.VITE_S3_BUCKET_NAME,
-        Key: key,
-        ContentType: file.type,
+      // Get the JWT token from Clerk
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      // Step 1: Get pre-signed URL from API Gateway
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/generate-upload-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type,
+        }),
       });
 
-      const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-      
-      await fetch(signedUrl, {
+      if (!response.ok) {
+        throw new Error('Failed to get upload URL');
+      }
+
+      const { uploadUrl, key } = await response.json();
+
+      // Step 2: Upload file using pre-signed URL
+      await fetch(uploadUrl, {
         method: 'PUT',
         body: file,
         headers: {
@@ -78,9 +75,51 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
         },
       });
 
-      const imageUrl = `https://${import.meta.env.VITE_S3_BUCKET_NAME}.s3.${import.meta.env.VITE_AWS_REGION}.amazonaws.com/${key}`;
-      onUploadComplete(imageUrl);
-      toast.success('Image uploaded successfully');
+      // Step 3: Start the generation process
+      const startResponse = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/start-generation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          key,
+        }),
+      });
+
+      if (!startResponse.ok) {
+        throw new Error('Failed to start generation');
+      }
+
+      const { jobId } = await startResponse.json();
+
+      // Step 4: Poll for completion
+      const pollInterval = setInterval(async () => {
+        const statusResponse = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}/generation-status/${jobId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!statusResponse.ok) {
+          throw new Error('Failed to get status');
+        }
+
+        const { status, resultUrl } = await statusResponse.json();
+
+        if (status === 'COMPLETE') {
+          clearInterval(pollInterval);
+          onUploadComplete(resultUrl);
+          toast.success('Image uploaded and processed successfully');
+        } else if (status === 'FAILED') {
+          clearInterval(pollInterval);
+          throw new Error('Generation failed');
+        }
+      }, 2000); // Poll every 2 seconds
+
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload image. Please try again.');
