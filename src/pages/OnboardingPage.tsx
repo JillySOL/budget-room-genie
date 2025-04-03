@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
@@ -82,13 +81,13 @@ const OnboardingPage = () => {
           <div 
             key={step}
             className={`h-1 flex-1 mx-0.5 rounded-full ${
-              step <= currentStep ? "bg-budget-teal" : "bg-muted"
+              step <= currentStep ? "bg-budget-accent" : "bg-muted"
             }`}
           />
         ))}
       </div>
 
-      <div className="flex-1">
+      <div className="flex-1 pb-6">
         {currentStep === 1 && (
           <div className="space-y-6 animate-fade-in">
             <h2 className="text-xl font-semibold">G'day! What room are you looking to flip?</h2>
@@ -100,20 +99,36 @@ const OnboardingPage = () => {
                   key={room.id}
                   className={`p-4 rounded-lg border ${
                     userData.roomType === room.id
-                      ? "border-budget-teal bg-budget-teal/10"
+                      ? "border-budget-accent bg-budget-accent/10"
                       : "border-gray-200 bg-white"
                   } flex flex-col items-center gap-2 cursor-pointer transition-all`}
                   onClick={() => setUserData({ ...userData, roomType: room.id })}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    userData.roomType === room.id ? "bg-budget-teal text-white" : "bg-gray-100"
-                  }`}>
+                    userData.roomType === room.id ? "bg-budget-accent text-white" : "bg-gray-100"
+                  } relative`}>
                     {room.icon}
+                    {userData.roomType === room.id && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center border border-budget-accent">
+                        <Check className="h-3 w-3 text-budget-accent" />
+                      </div>
+                    )}
                   </div>
-                  <span className="font-medium text-sm">{room.name}</span>
+                  <span className={`font-medium text-sm ${userData.roomType === room.id ? "text-budget-accent" : ""}`}>
+                    {room.name}
+                  </span>
                 </div>
               ))}
             </div>
+            
+            <Button
+              className="w-full flex items-center justify-center gap-2 mt-6 bg-budget-accent hover:bg-budget-accent/90"
+              onClick={handleNextStep}
+              disabled={!userData.roomType}
+            >
+              Continue
+              <ArrowRight className="h-4 w-4" />
+            </Button>
           </div>
         )}
 
@@ -128,20 +143,30 @@ const OnboardingPage = () => {
                   key={option.id}
                   className={`p-4 rounded-lg border ${
                     userData.budget === option.id
-                      ? "border-budget-teal bg-budget-teal/10"
+                      ? "border-budget-accent bg-budget-accent/10"
                       : "border-gray-200 bg-white"
                   } flex items-center justify-between cursor-pointer transition-all`}
                   onClick={() => setUserData({ ...userData, budget: option.id })}
                 >
-                  <span className="font-medium">{option.label}</span>
+                  <span className={`font-medium ${userData.budget === option.id ? "text-budget-accent" : ""}`}>
+                    {option.label}
+                  </span>
                   {userData.budget === option.id && (
-                    <div className="w-5 h-5 rounded-full bg-budget-teal flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full bg-budget-accent flex items-center justify-center">
                       <Check className="h-3 w-3 text-white" />
                     </div>
                   )}
                 </div>
               ))}
             </div>
+            
+            <Button
+              className="w-full flex items-center justify-center gap-2 mt-6 bg-budget-accent hover:bg-budget-accent/90"
+              onClick={handleNextStep}
+            >
+              Continue
+              <ArrowRight className="h-4 w-4" />
+            </Button>
           </div>
         )}
 
@@ -157,9 +182,19 @@ const OnboardingPage = () => {
                   label={style.label}
                   selected={userData.style === style.id}
                   onClick={() => setUserData({ ...userData, style: style.id })}
+                  useOrangeAccent={true}
                 />
               ))}
             </div>
+            
+            <Button
+              className="w-full flex items-center justify-center gap-2 mt-6 bg-budget-accent hover:bg-budget-accent/90"
+              onClick={handleNextStep}
+              disabled={!userData.style}
+            >
+              Continue
+              <ArrowRight className="h-4 w-4" />
+            </Button>
           </div>
         )}
 
@@ -174,40 +209,39 @@ const OnboardingPage = () => {
                   key={type.id}
                   className={`p-4 rounded-lg border ${
                     userData.renovationType === type.id
-                      ? "border-budget-teal bg-budget-teal/10"
+                      ? "border-budget-accent bg-budget-accent/10"
                       : "border-gray-200 bg-white"
                   } flex items-center gap-3 cursor-pointer transition-all`}
                   onClick={() => setUserData({ ...userData, renovationType: type.id })}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    userData.renovationType === type.id ? "bg-budget-teal text-white" : "bg-gray-100"
-                  }`}>
+                    userData.renovationType === type.id ? "bg-budget-accent text-white" : "bg-gray-100"
+                  } relative`}>
                     {type.icon}
+                    {userData.renovationType === type.id && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center border border-budget-accent">
+                        <Check className="h-3 w-3 text-budget-accent" />
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <h3 className="font-medium">{type.name}</h3>
+                    <h3 className={`font-medium ${userData.renovationType === type.id ? "text-budget-accent" : ""}`}>{type.name}</h3>
                     <p className="text-xs text-muted-foreground">{type.description}</p>
                   </div>
                 </div>
               ))}
             </div>
+            
+            <Button
+              className="w-full flex items-center justify-center gap-2 mt-6 bg-budget-accent hover:bg-budget-accent/90"
+              onClick={handleNextStep}
+              disabled={!userData.renovationType}
+            >
+              Save & Finish
+              <ArrowRight className="h-4 w-4" />
+            </Button>
           </div>
         )}
-      </div>
-
-      <div className="mt-8 mb-6">
-        <Button
-          className="w-full flex items-center justify-center gap-2"
-          onClick={handleNextStep}
-          disabled={
-            (currentStep === 1 && !userData.roomType) ||
-            (currentStep === 3 && !userData.style) ||
-            (currentStep === 4 && !userData.renovationType)
-          }
-        >
-          {currentStep < 4 ? "Continue" : "Save & Finish"}
-          <ArrowRight className="h-4 w-4" />
-        </Button>
       </div>
     </PageContainer>
   );

@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "@clerk/clerk-react";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Camera, Upload, Loader2, X, CheckCircle } from 'lucide-react';
+import { Camera, Upload, Loader2, X, CheckCircle, AlertTriangle, ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
+// Import the hook for fetching user photos
+import { useFetchUserPhotos } from "@/hooks/useFetchUserPhotos";
 
 interface RoomPhotoUploadProps {
   // Remove onUploadComplete as navigation happens internally
@@ -21,6 +23,11 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   // Add state for upload success
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [isConfigValid, setIsConfigValid] = useState(true);
+  // Add state to control gallery visibility
+  const [showGallery, setShowGallery] = useState(false);
+  // Add state to track selected S3 key when choosing existing photo
+  const [selectedPhotoKey, setSelectedPhotoKey] = useState<string | null>(null);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,23 +35,43 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
   const { userId, getToken } = useAuth();
   // Initialize navigate
   const navigate = useNavigate();
+  // Fetch user photos using the hook
+  const { photos, isLoading: isLoadingPhotos, error: photoError } = useFetchUserPhotos();
 
-  // Validate API endpoint
-  const apiEndpoint = import.meta.env.VITE_API_ENDPOINT;
-  if (!apiEndpoint) {
-    console.error('API endpoint is not configured');
-    setError('API endpoint is not configured. Please check your environment variables.');
+  // Validate environment configuration on mount
+  useEffect(() => {
+    const requiredEnvVars = {
+      'API Endpoint': import.meta.env.VITE_API_ENDPOINT,
+      'Clerk Key': import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+    };
+
+    const missingVars = Object.entries(requiredEnvVars)
+      .filter(([_, value]) => !value)
+      .map(([key]) => key);
+
+    if (missingVars.length > 0) {
+      console.error('Missing required environment variables:', missingVars);
+      setIsConfigValid(false);
+      setError(`Missing configuration: ${missingVars.join(', ')}`);
+    }
+  }, []);
+
+  // If configuration is invalid, show error state
+  if (!isConfigValid) {
     return (
-      <Card className="w-full">
+      <Card className="w-full max-w-md mx-auto">
         <CardHeader>
-          <CardTitle>Upload Your Room Photo</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-red-600">
+            <AlertTriangle className="h-5 w-5" />
+            Configuration Error
+          </CardTitle>
           <CardDescription>
-            Take a photo of the room you want to transform
+            The application is not properly configured. Please contact support.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center text-red-500">
-            Configuration error: API endpoint is not set
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-sm text-red-600">{error}</p>
           </div>
         </CardContent>
       </Card>
@@ -62,6 +89,8 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
     setUploadSuccess(false);
     setIsUploading(false);
     setUploadProgress(0);
+    setSelectedPhotoKey(null);
+    setShowGallery(false);
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
@@ -89,8 +118,38 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
     event.target.value = '';
   };
 
+  // Handle selecting a photo from the gallery
+  const handleSelectExistingPhoto = (photo: { key: string, url: string }) => {
+    // Reset file-related states
+    setSelectedFile(null);
+    setUploadSuccess(false);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setError(null);
+    
+    // Set the preview URL to the photo URL
+    setPreviewUrl(photo.url);
+    // Store the S3 key of the selected photo
+    setSelectedPhotoKey(photo.key);
+    // Hide the gallery after selection
+    setShowGallery(false);
+  };
+
   // Rename to handleConfirmAndUpload, takes no file argument
   const handleConfirmAndUpload = async () => {
+    // If we're using an existing photo, we don't need to upload
+    if (selectedPhotoKey) {
+      toast.success("Using existing photo!");
+      // Navigate to the next step
+      navigate('/onboarding', { 
+        state: { 
+          photoKey: selectedPhotoKey 
+        } 
+      });
+      return;
+    }
+
+    // Otherwise, handle uploading a new file
     if (!selectedFile) {
       setError("No file selected for upload.");
       toast.error("No file selected for upload.");
@@ -117,7 +176,7 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
 
       // Step 1: Get pre-signed URL from API Gateway
       console.log('Requesting pre-signed URL...');
-      const response = await fetch(`${apiEndpoint}/generate-upload-url`, {
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/generate-upload-url`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,7 +195,7 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
           status: response.status,
           statusText: response.statusText,
           error: errorText,
-          endpoint: `${apiEndpoint}/generate-upload-url`,
+          endpoint: `${import.meta.env.VITE_API_ENDPOINT}/generate-upload-url`,
           requestHeaders: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer [redacted]'
@@ -195,8 +254,12 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
 
       // Navigate to the next step after a short delay
       setTimeout(() => {
-        // Update navigation target to /onboarding
-        navigate('/onboarding');
+        // Update navigation target to /onboarding, passing the uploaded photo key
+        navigate('/onboarding', { 
+          state: { 
+            photoKey: responseData.key 
+          } 
+        });
       }, 1000); // 1 second delay to show success message
 
     } catch (err: any) {
@@ -216,10 +279,16 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
     }
     setPreviewUrl(null);
     setSelectedFile(null);
+    setSelectedPhotoKey(null);
     setError(null);
     setIsUploading(false);
     setUploadProgress(0);
     setUploadSuccess(false);
+  };
+
+  // Toggle gallery visibility
+  const toggleGallery = () => {
+    setShowGallery(prev => !prev);
   };
 
   // Trigger hidden file input click
@@ -263,6 +332,48 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
             <Button onClick={triggerFileInput} className="w-full">
               <Upload className="mr-2 h-4 w-4" /> Upload from Device
             </Button>
+            {/* New button to show gallery */}
+            <Button onClick={toggleGallery} className="w-full" variant="outline">
+              <ImageIcon className="mr-2 h-4 w-4" /> Choose from your photos
+            </Button>
+            
+            {/* Display gallery when showGallery is true */}
+            {showGallery && (
+              <div className="mt-4">
+                <h3 className="text-sm font-medium mb-2">Your Photos</h3>
+                {isLoadingPhotos ? (
+                  <div className="flex justify-center items-center h-32 text-gray-500">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading photos...
+                  </div>
+                ) : photoError ? (
+                  <div className="bg-red-50 p-3 rounded-lg text-red-600 text-sm">
+                    <AlertTriangle className="h-4 w-4 inline mr-1" /> {photoError}
+                  </div>
+                ) : photos.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500 text-sm">
+                    <p>You haven't uploaded any photos yet.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {photos.map((photo) => (
+                      <div 
+                        key={photo.key} 
+                        className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                        onClick={() => handleSelectExistingPhoto(photo)}
+                      >
+                        <img
+                          src={photo.url}
+                          alt="User uploaded room photo"
+                          className="w-full h-full object-cover"
+                          onError={(e) => (e.currentTarget.src = '/placeholder-image.svg')}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
             {error && <p className="text-sm text-red-500 text-center">{error}</p>}
           </CardContent>
         </>
@@ -306,7 +417,7 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
                 className="flex-1"
                 disabled={isUploading || uploadSuccess} // Disable if uploading or success
               >
-                Retake
+                {selectedPhotoKey ? 'Change Photo' : 'Retake'}
               </Button>
               <Button
                 onClick={handleConfirmAndUpload}
