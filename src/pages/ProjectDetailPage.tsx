@@ -1,8 +1,7 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download } from "lucide-react";
-import { IMAGES } from "@/constants/images";
+import { ArrowLeft, Download, AlertTriangle } from "lucide-react";
 import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter";
 import {
   Accordion,
@@ -11,256 +10,259 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useAuth } from "@clerk/clerk-react";
-import { LoadingPage } from "@/components/ui/loading";
+import { LoadingPage, Loading } from "@/components/ui/loading";
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
 
-// Sample project data - in a real app, this would come from an API
-const PROJECTS = {
-  "bathroom-refresh": {
-    id: "bathroom-refresh",
-    title: "Budget-Friendly Bathroom Refresh",
-    valueAdd: 18000,
-    totalCost: 780,
-    description: "See how we transformed this bathroom for under $780 with clever DIY hacks and budget-friendly updates.",
-    suggestions: [
-      {
-        id: "s1",
-        title: "Paint Wall (Soft Neutral)",
-        estimatedCost: 150,
-        description: "Painted the upper wall a neutral, modern tone (light beige or off-white) to freshen the look and make the space feel larger."
-      },
-      {
-        id: "s2",
-        title: "Replace Shower Curtain & Rod",
-        estimatedCost: 80,
-        description: "Swapped outdated floral curtain with a clean white waffle-style curtain and upgraded to a sleek chrome rod."
-      },
-      {
-        id: "s3",
-        title: "Modernize Mirror",
-        estimatedCost: 120,
-        description: "Replaced circular mirror with a rectangular black-framed mirror for a clean-lined contemporary vibe."
-      },
-      {
-        id: "s4",
-        title: "Upgrade Vanity Fixtures",
-        estimatedCost: 100,
-        description: "Swapped dated gold tap for a matte brushed gold or black fixture to match new hardware."
-      },
-      {
-        id: "s5",
-        title: "Tile Over Existing Wall Tiles",
-        estimatedCost: 250,
-        description: "Covered old floral tiles with modern white wall panels or peel-and-stick tiles for a seamless finish (DIY hack, no demolition required)."
-      },
-      {
-        id: "s6",
-        title: "Swap Accessories",
-        estimatedCost: 50,
-        description: "Neutral-toned soap pump, coordinated hand towel, and a fresh green plant to give the space warmth and life."
-      },
-      {
-        id: "s7",
-        title: "Replace Floor Mat",
-        estimatedCost: 30,
-        description: "Chose a plush dark green mat to contrast the beige floor and add visual texture."
-      }
-    ]
-  },
-  "kitchen-makeover": {
-    id: "kitchen-makeover",
-    title: "Kitchen Cabinet Makeover",
-    valueAdd: 12000,
-    totalCost: 450,
-    description: "Transform your kitchen with a budget-friendly cabinet makeover that adds significant value to your home.",
-    suggestions: [
-      {
-        id: "k1",
-        title: "Paint Cabinet Doors",
-        estimatedCost: 150,
-        description: "Used a high-quality cabinet paint in a modern white shade to give the kitchen a fresh, clean look."
-      },
-      {
-        id: "k2",
-        title: "Replace Cabinet Hardware",
-        estimatedCost: 80,
-        description: "Installed modern brushed gold handles and knobs to add a touch of luxury."
-      },
-      {
-        id: "k3",
-        title: "Add Cabinet Crown Molding",
-        estimatedCost: 120,
-        description: "Installed crown molding to the top of cabinets for a more finished, custom look."
-      },
-      {
-        id: "k4",
-        title: "Install Under-Cabinet Lighting",
-        estimatedCost: 100,
-        description: "Added LED strip lighting under cabinets for better task lighting and ambiance."
-      },
-      {
-        id: "k5",
-        title: "Paint Kitchen Walls",
-        estimatedCost: 50,
-        description: "Painted walls in a light, neutral color to complement the new cabinet color."
-      }
-    ]
-  }
-};
+interface DIYSuggestion {
+  id: string;
+  title: string;
+  description: string;
+  cost: number;
+}
+
+interface Project {
+  id: string;
+  title: string;
+  userId: string;
+  roomType: string;
+  budget: number;
+  style: string;
+  renovationType: string;
+  instructions?: string;
+  beforeImageKey: string;
+  afterImageKey?: string;
+  diySuggestions: DIYSuggestion[];
+  createdAt: string;
+  updatedAt: string;
+  status: 'PENDING' | 'COMPLETE' | 'FAILED';
+  totalCost: number;
+  beforeImageUrl: string;
+  afterImageUrl: string;
+}
 
 const ProjectDetailPage = () => {
-  const { id } = useParams();
-  const { isSignedIn } = useAuth();
+  const { projectId } = useParams<{ projectId: string }>();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const navigate = useNavigate();
+
+  const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const project = PROJECTS[id as keyof typeof PROJECTS];
-  
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!projectId) {
+      setError("No project ID provided.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!isLoaded) {
+      return;
+    }
+    
+    if (!isSignedIn) {
+       setIsLoading(false);
+       setError("Please sign in to view project details."); 
+       return; 
+    }
+
+    const fetchProject = async () => {
+      setIsLoading(true);
+      setError(null);
+      setProject(null);
+
+      try {
+        const token = await getToken({ template: "RenoMateBackendAPI" });
+        if (!token) {
+          throw new Error("Authentication token not available.");
+        }
+
+        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/project/${projectId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.status === 404) {
+          throw new Error("Project not found.");
+        }
+        if (response.status === 403) {
+           throw new Error("You do not have permission to view this project.");
+        }
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: 'Failed to fetch project details' }));
+          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+
+        const data: Project = await response.json();
+        setProject(data);
+      } catch (err: any) {
+        console.error("Error fetching project:", err);
+        setError(err.message || "An unexpected error occurred.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProject();
+  }, [projectId, isLoaded, isSignedIn, getToken]); 
 
   if (isLoading) {
     return <LoadingPage />;
   }
 
-  if (!project) {
+  if (error || !project) {
     return (
       <PageContainer>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center py-8"
+          className="text-center py-12 flex flex-col items-center gap-4"
         >
-          <h1 className="text-xl font-semibold mb-4">Project Not Found</h1>
-          <Link to="/explore">
-            <Button>Back to Explore</Button>
-          </Link>
+          <AlertTriangle className="w-12 h-12 text-destructive" />
+          <h1 className="text-xl font-semibold text-destructive">
+            {error || "Project Not Found"}
+          </h1>
+          <p className="text-muted-foreground">
+            {error === "Project not found." 
+              ? "The project you are looking for does not exist or may have been deleted."
+              : error === "You do not have permission to view this project."
+              ? "Please ensure you are logged in with the correct account."
+              : error === "Please sign in to view project details."
+              ? "Sign in to access your projects."
+              : "An error occurred while loading the project. Please try again later."
+            }
+          </p>
+          <Button onClick={() => navigate('/projects')}>Back to My Projects</Button>
         </motion.div>
       </PageContainer>
     );
   }
 
-  const handleSaveToNotebook = () => {
-    if (!isSignedIn) {
-      // Redirect to sign in
-      window.location.href = '/sign-in';
-      return;
-    }
-    localStorage.setItem('savedDesign', JSON.stringify(project));
-  };
+  const beforeImageUrl = project.beforeImageUrl || '/placeholder-image.png';
+  const afterImageUrl = project.afterImageUrl || beforeImageUrl;
 
-  const handleSaveToProjects = () => {
-    if (!isSignedIn) {
-      // Redirect to sign in
-      window.location.href = '/sign-in';
-      return;
-    }
-    // TODO: Implement save to projects
+  const handleDownload = () => {
+     toast.info("Download functionality coming soon!");
   };
 
   return (
     <PageContainer>
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="space-y-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="space-y-8"
       >
-        <div className="flex items-center mb-8">
-          <Link to="/explore">
-            <Button variant="ghost" size="icon" className="mr-2" aria-label="Back to Explore">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <h1 className="text-xl font-semibold">{project.title}</h1>
+        <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="mr-2" 
+            aria-label="Back to Projects"
+            onClick={() => navigate('/projects')}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-semibold truncate" title={project.title}>{project.title || 'Project Details'}</h1>
         </div>
         
-        <div className="max-w-3xl mx-auto">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="mb-8"
+        <div className="max-w-4xl mx-auto space-y-8">
+          <motion.div
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ delay: 0.1, duration: 0.4 }}
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-budget-dark">{project.title}</h2>
-              <span className="bg-[#E6F4EA] text-green-800 text-sm font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 19V5M5 12l7-7 7 7"/>
-                </svg>
-                +${project.valueAdd.toLocaleString()} Value
-              </span>
-            </div>
-
-            <p className="text-budget-dark/70 mb-6">
-              {project.description}
-            </p>
-
             <EnhancedBeforeAfter
-              beforeImage={IMAGES.BEFORE}
-              afterImage={IMAGES.AFTER}
-              className="mb-6"
+              beforeImage={beforeImageUrl}
+              afterImage={afterImageUrl}
+              className="rounded-lg overflow-hidden shadow-lg border dark:border-gray-700"
             />
-            
-            <Accordion type="single" collapsible className="mb-6">
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.4 }}
+            className="bg-card p-4 sm:p-6 rounded-lg border dark:border-gray-700 shadow-sm"
+          >
+            <h3 className="text-lg font-semibold mb-4 border-b pb-2 dark:border-gray-600">Your Specifications</h3>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-muted-foreground">
+              <p><strong className="text-card-foreground font-medium">Room Type:</strong> {project.roomType || 'N/A'}</p>
+              <p><strong className="text-card-foreground font-medium">Desired Style:</strong> {project.style || 'N/A'}</p>
+              <p><strong className="text-card-foreground font-medium">Budget:</strong> ${project.budget != null ? project.budget.toFixed(0) : 'N/A'}</p>
+              <p><strong className="text-card-foreground font-medium">Renovation Type:</strong> {project.renovationType || 'N/A'}</p>
+              {project.instructions && (
+                <p className="col-span-2"><strong className="text-card-foreground font-medium">Instructions:</strong> {project.instructions}</p>
+              )}
+            </div>
+          </motion.div>
+
+          <motion.div
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ delay: 0.2, duration: 0.4 }}
+          >
+            <Accordion type="single" collapsible defaultValue="suggestions" className="w-full bg-card p-4 sm:p-6 rounded-lg border dark:border-gray-700 shadow-sm">
               <AccordionItem value="suggestions">
-                <AccordionTrigger className="text-budget-accent">
-                  View suggested DIY improvements
+                <AccordionTrigger className="text-lg font-medium hover:no-underline">
+                  Suggested DIY Improvements (Mock)
                 </AccordionTrigger>
                 <AccordionContent>
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="space-y-6 pt-4"
-                  >
-                    {project.suggestions.map((suggestion) => (
-                      <motion.div 
-                        key={suggestion.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex items-start gap-4"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-medium text-budget-dark">{suggestion.title}</h3>
-                            <span className="text-sm font-medium text-budget-accent">
-                              ${suggestion.estimatedCost}
-                            </span>
+                  <div className="space-y-6 pt-6">
+                    {project.diySuggestions.length > 0 ? (
+                      project.diySuggestions.map((suggestion, index) => (
+                        <motion.div 
+                          key={suggestion.id || index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05, duration: 0.3 }}
+                          className="flex items-start gap-4 border-b dark:border-gray-700 pb-4 last:border-b-0 last:pb-0"
+                        >
+                          <div className="flex-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                              <h3 className="font-medium text-card-foreground mb-1 sm:mb-0">{suggestion.title}</h3>
+                              <span className="text-sm font-semibold text-budget-accent">
+                                ${suggestion.cost.toFixed(0)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{suggestion.description}</p>
                           </div>
-                          <p className="text-sm text-budget-dark/70">{suggestion.description}</p>
-                        </div>
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground italic">No specific DIY suggestions available for this project yet.</p>
+                    )}
                     
-                    <div className="flex justify-between items-center pt-4 border-t">
-                      <span className="font-medium">Total Cost</span>
-                      <span className="text-budget-accent font-medium">
-                        ${project.totalCost} AUD
-                      </span>
-                    </div>
-                  </motion.div>
+                    {project.diySuggestions.length > 0 && (
+                      <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700 mt-4">
+                        <span className="text-lg font-semibold">Estimated Total Cost</span>
+                        <span className="text-budget-accent text-xl font-bold">
+                          ${project.totalCost.toFixed(0)} AUD
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
+          </motion.div>
             
-            <div className="flex flex-col gap-3">
-              <Button 
-                className="w-full gap-2"
-                onClick={handleSaveToProjects}
-              >
-                <Download className="h-4 w-4" />
-                Save to My Projects
-              </Button>
-              <Button 
-                className="w-full bg-[#f9f9f9] hover:bg-[#f0f0f0] text-budget-dark border border-gray-200 flex items-center justify-start px-4"
-                onClick={handleSaveToNotebook}
-              >
-                <span className="mr-2">📝</span> Save to Notebook
-              </Button>
-            </div>
+          <motion.div 
+            className="flex justify-end gap-3 mt-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.4 }}
+          >
+            <Button variant="outline" disabled title="Edit functionality coming soon">
+              Edit Project
+            </Button>
+            <Button onClick={handleDownload} className="gap-2">
+              <Download className="h-4 w-4" />
+              Download Results
+            </Button>
           </motion.div>
         </div>
       </motion.div>

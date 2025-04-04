@@ -248,28 +248,34 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
 
       // Upload successful!
       setUploadSuccess(true);
-      toast.success("Photo uploaded successfully!");
-
-      // **Remove Step 3 (Start Generation) and Step 4 (Polling)**
-
-      // Navigate to the next step after a short delay
-      setTimeout(() => {
-        // Update navigation target to /onboarding, passing the uploaded photo key
-        navigate('/onboarding', { 
-          state: { 
-            photoKey: responseData.key 
-          } 
-        });
-      }, 1000); // 1 second delay to show success message
-
-    } catch (err: any) {
-      console.error('Upload process failed:', err);
-      setError(err.message || 'An unknown error occurred during upload.');
-      toast.error(`Upload failed: ${err.message || 'Unknown error'}`);
+      // Save the S3 key for later reference
+      setSelectedPhotoKey(key);
+      toast.success('Photo uploaded successfully!');
+      console.log('Upload successful:', { key });
+      // No automatic navigation here
+    } catch (error) {
+      console.error('Upload error:', error);
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
+      toast.error('Failed to upload photo');
     } finally {
       setIsUploading(false);
-      // Don't reset preview on error, allow user to retry or retake
     }
+  };
+
+  // Handle navigation to the next step
+  const handleContinue = () => {
+    // Only proceed if we have either an uploaded photo key or a selected existing photo
+    if (!selectedPhotoKey) {
+      toast.error('Please select or upload a photo first');
+      return;
+    }
+
+    // Navigate to the onboarding page with the photo key
+    navigate('/onboarding', { 
+      state: { 
+        photoKey: selectedPhotoKey 
+      } 
+    });
   };
 
   // Function to clear the preview and selected file
@@ -379,60 +385,31 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
         </>
       ) : (
         <>
-          {/* Preview Step */}
-          <CardHeader>
-            <CardTitle>Preview Your Photo</CardTitle>
-            <CardDescription>
-              Make sure your room is clearly visible.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="relative aspect-video rounded-lg overflow-hidden border">
-              <img
-                src={previewUrl}
-                alt="Room preview"
-                className="absolute inset-0 w-full h-full object-contain" // Use object-contain for preview
-              />
-              {/* Loading/Progress Indicator */}
-              {isUploading && (
-                <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white space-y-2">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                  <p>Uploading... {uploadProgress}%</p>
-                </div>
-              )}
-              {/* Success Indicator */}
-              {uploadSuccess && (
-                 <div className="absolute inset-0 bg-green-500/80 flex flex-col items-center justify-center text-white space-y-2">
-                   <CheckCircle className="h-8 w-8" />
-                   <p>Upload Complete!</p>
-                 </div>
-               )}
+          {/* Show preview and actions after selection */}
+          {(previewUrl || uploadSuccess) && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="relative aspect-square max-h-80 overflow-hidden rounded-lg">
+                <img 
+                  src={previewUrl} 
+                  alt="Room preview" 
+                  className="w-full h-full object-cover" 
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={handleRetake}>
+                  Change Photo
+                </Button>
+                <Button 
+                  className="flex-1 bg-budget-accent hover:bg-budget-accent/90" 
+                  disabled={isUploading || !selectedPhotoKey}
+                  onClick={handleContinue}
+                >
+                  Continue
+                </Button>
+              </div>
             </div>
-
-            {/* Buttons: Retake and Continue */}
-            <div className="flex gap-4">
-              <Button
-                onClick={handleRetake}
-                variant="outline"
-                className="flex-1"
-                disabled={isUploading || uploadSuccess} // Disable if uploading or success
-              >
-                {selectedPhotoKey ? 'Change Photo' : 'Retake'}
-              </Button>
-              <Button
-                onClick={handleConfirmAndUpload}
-                className="flex-1 bg-green-600 hover:bg-green-700" // Match screenshot style
-                disabled={isUploading || uploadSuccess} // Disable if uploading or success
-              >
-                {isUploading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  'Continue'
-                )}
-              </Button>
-            </div>
-            {error && !isUploading && <p className="text-sm text-red-500 text-center">{error}</p>}
-          </CardContent>
+          )}
         </>
       )}
     </Card>

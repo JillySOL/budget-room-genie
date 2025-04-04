@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ImageUpload } from './components/upload/ImageUpload';
 import { SubscriptionCheckout } from './components/subscription/SubscriptionCheckout';
@@ -20,6 +19,7 @@ import Projects from './pages/Projects';
 import ExplorePage from './pages/ExplorePage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import ProfilePage from './pages/ProfilePage';
+import ProjectStatusPage from './pages/ProjectStatusPage';
 
 // Get Clerk publishable key from environment variables
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -114,7 +114,7 @@ function App() {
                   <Route path="/" element={<Index />} />
                   <Route path="/explore" element={<ExplorePage />} />
                   <Route path="/onboarding" element={<OnboardingPage />} />
-                  <Route path="/project/:id" element={<ProjectDetailPage />} />
+                  <Route path="/project/:projectId" element={<ProjectDetailPage />} />
                   
                   {/* Auth routes */}
                   <Route path="/sign-in" element={<ClerkAuth />} />
@@ -142,6 +142,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Projects />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/status"
+                    element={
+                      <ProtectedRoute>
+                        <ProjectStatusPage />
                       </ProtectedRoute>
                     } 
                   />
