@@ -504,477 +504,84 @@ Omitting the template parameter will result in 401 Unauthorized errors from API 
 
 ## 4. Implementation Guide for Junior Developers
 
-Follow these steps sequentially to implement the project creation functionality:
+### Current Implementation Status
 
-1. **Set Up Project Database Schema** `[COMPLETED]`
-   - Create a new DynamoDB table for projects with fields matching the `Project` interface.
-   - Set up appropriate indexes for userId and other frequent query patterns.
-   - Implement and test CRUD operations on the table.
+#### Completed Tasks
+1. **Infrastructure Setup**
+   - ✅ VPC configuration with private subnets
+   - ✅ Aurora PostgreSQL database setup
+   - ✅ S3 bucket configuration
+   - ✅ Cognito authentication
+   - ✅ API Gateway setup
+   - ✅ Lambda function deployment
 
-2. **Create Backend Lambda for Project Storage** `[COMPLETED]`
-   - Implement `POST /save-project` Lambda function.
-   - Include validation for all required fields.
-   - Add proper error handling and response formatting.
-   - Connect to DynamoDB for storage.
+2. **Security Implementation**
+   - ✅ VPC isolation
+   - ✅ Database encryption
+   - ✅ IAM roles with least privilege
+   - ✅ JWT authentication
+   - ✅ CORS configuration
 
-3. **Extend ProcessImage Lambda** `[IN PROGRESS]`
-   - Update to accept expanded projectDetails (room type, budget, style, renovation type).
-   - ~~Modify OpenAI prompt to request both an after image AND DIY suggestions.~~
-   - ~~Parse OpenAI response to extract both image and structured DIY suggestions.~~
-   - Store suggestions along with project data.
+3. **API Endpoints**
+   - ✅ Image upload and management
+   - ✅ Project creation and management
+   - ✅ User authentication
+   - ✅ Status checking
 
-   **REVISED APPROACH (Pre-AI Implementation):**
-   - Create a simplified mock version of the ProcessImage Lambda that:
-     - Accepts the same input (image key and project details)
-     - Returns a hardcoded "after" image URL (can use the original image temporarily)
-     - Generates mock DIY suggestions based on the room type
-     - Saves project data to DynamoDB with mock results
-     - Returns a jobId and projectId for the frontend to use
-   - This allows testing the complete user flow without OpenAI integration
+### Next Steps
 
-4. **Create Project Details Form Component** `[COMPLETED]`
-   - Build form UI with all required fields from the specifications.
-   - Implement validation logic.
-   - Add state management for form fields.
-   - Style according to app design guidelines.
+1. **Frontend Integration**
+   - Update authentication to use Cognito instead of Clerk
+   - Implement proper error handling
+   - Add loading states
+   - Improve user feedback
 
-5. **Implement New Project Flow** `[COMPLETED]`
-   - Connect image selection step to project details form.
-   - Implement navigation between steps.
-   - Add loading states and error handling.
-   - Implement free/paid logic check before generation.
+2. **Database Schema**
+   - Create tables for projects
+   - Implement data access layer
+   - Add indexes for performance
+   - Set up migrations
 
-6. **Create Status/Loading Page** `[COMPLETED]`
-   - Build UI for displaying generation status.
-   - Implement polling logic with appropriate intervals.
-   - Add cancel option if needed.
-   - Handle both success and failure cases.
+3. **Feature Implementation**
+   - Project creation flow
+   - Image processing pipeline
+   - Status tracking
+   - User management
 
-7. **Build Project View Page** `[USING EXISTING IMPLEMENTATION]`
-   - Create the main project view layout.
-   - Implement before/after image comparison component.
-   - Build DIY suggestions list with expandable sections.
-   - Style to match the design in the example URL.
+4. **Testing and Quality**
+   - Unit tests for Lambda functions
+   - Integration tests for API
+   - End-to-end testing
+   - Performance testing
 
-8. **Update My Rooms Gallery** `[IN PROGRESS]`
-   - Create a Lambda function to retrieve user's projects from DynamoDB:
-     ```javascript
-     // Create a new Lambda function "RenoMate-ListUserProjects"
-     // This function should:
-     // 1. Extract userId from the JWT token
-     // 2. Query DynamoDB for all projects with that userId
-     // 3. Return the list of projects with thumbnails and basic metadata
-     ```
-   - Add an API Gateway route for `/projects` pointing to this Lambda
-   - Update the Projects page in the frontend to fetch and display real projects:
-     ```jsx
-     // In src/pages/Projects.tsx or similar:
-     // 1. Use the useAuth hook to get the token with template
-     // 2. Fetch projects from the API
-     // 3. Display projects in a grid with thumbnails
-     // 4. Add loading states and error handling
-     ```
-   - Implement project card component that displays:
-     - Project thumbnail (before/after image)
-     - Project title and type
-     - Creation date
-     - Total cost of DIY suggestions
-   - Add linking to project detail page for each card
-   - Ensure responsive design for mobile viewing
+5. **Monitoring and Operations**
+   - CloudWatch dashboards
+   - Error tracking
+   - Performance monitoring
+   - Backup verification
 
-9. **Implement Project Detail View with Real Data** `[IN PROGRESS]`
-   - Create a Lambda function to get a single project by ID:
-     ```javascript
-     // Create a new Lambda function "RenoMate-GetProject"
-     // This function should:
-     // 1. Take a projectId as a path parameter
-     // 2. Verify the requesting user is the owner of the project
-     // 3. Retrieve the full project details from DynamoDB
-     // 4. Return the complete project data including DIY suggestions
-     // [COMPLETED] Lambda function created.
-     ```
-   - Add an API Gateway route for `/project/{projectId}` pointing to this Lambda
-   // [COMPLETED] API Gateway route created.
-   - Update the existing ProjectDetailPage component:
-     ```jsx
-     // In src/pages/ProjectDetailPage.tsx:
-     // 1. Extract projectId from route params
-     // 2. Fetch project data from the API using the JWT token
-     // 3. Display project details using existing components
-     // 4. Handle loading and error states
-     ```
-   - Connect the BeforeAfterGallery component to use real image URLs
-   - Connect the DIY suggestions accordion to use real data from project
-   - Ensure all data is properly formatted and styled
+### Development Guidelines
 
-10. **Implement Mock Projects for Testing** `[TODO]`
-    - Create a utility Lambda function to populate test projects in DynamoDB
-    - Generate a variety of project types with different settings
-    - This allows testing the UI without manually creating projects
+1. **Code Organization**
+   - Follow TypeScript best practices
+   - Use dependency injection
+   - Implement proper error handling
+   - Write comprehensive tests
 
-11. **Implement Error Handling and Edge Cases** `[TODO]`
-    - Add error boundaries around key components
-    - Implement graceful handling of API failures
-    - Add fallback UI for missing images or data
-    - Test with slow network conditions
-    - Ensure mobile responsiveness
+2. **Security Practices**
+   - Validate all inputs
+   - Use parameterized queries
+   - Implement proper authentication
+   - Follow least privilege principle
 
-12. **OpenAI Integration (Future Phase)** `[FUTURE]`
-    - Replace the mock ProcessImage Lambda with real OpenAI integration
-    - Add appropriate error handling for AI service failures
-    - Implement retry logic for failed generations
-    - Consider adding a queue for handling multiple generation requests
+3. **Performance Considerations**
+   - Optimize database queries
+   - Implement caching where appropriate
+   - Monitor resource usage
+   - Scale based on demand
 
-## 5. Immediate Implementation Steps
-
-To show a functioning project flow without AI generation, complete these steps:
-
-1. **Create Mock ProcessImage Lambda Implementation**
-   - Modify the existing RenoMate-ProcessImage Lambda to return mock data
-   - Code snippet:
-   ```javascript
-   exports.handler = async (event) => {
-     try {
-       // Parse request body
-       const requestBody = JSON.parse(event.body);
-       const imageKey = requestBody.key;
-       const projectDetails = requestDetails.projectDetails;
-       
-       // Get user ID from JWT
-       const userId = event.requestContext.authorizer.jwt.claims.sub;
-       
-       // Generate mock project ID and job ID
-       const projectId = generateProjectId(projectDetails.roomType);
-       const jobId = crypto.randomUUID();
-       
-       // Re-use the original image for now as the "after" image
-       const afterImageKey = imageKey;
-       
-       // Generate mock DIY suggestions based on room type
-       const diySuggestions = generateMockSuggestions(projectDetails.roomType);
-       
-       // Calculate total cost
-       const totalCost = diySuggestions.reduce((sum, item) => sum + item.cost, 0);
-       
-       // Store project in DynamoDB
-       const projectItem = {
-         userId,
-         id: projectId,
-         title: `${projectDetails.roomType} ${projectDetails.renovationType}`,
-         roomType: projectDetails.roomType,
-         budget: projectDetails.budget,
-         style: projectDetails.style,
-         renovationType: projectDetails.renovationType,
-         instructions: projectDetails.instructions || '',
-         beforeImageKey: imageKey,
-         afterImageKey: afterImageKey,
-         diySuggestions,
-         createdAt: new Date().toISOString(),
-         updatedAt: new Date().toISOString(),
-         status: 'COMPLETE',
-         totalCost
-       };
-       
-       // Save to DynamoDB
-       await dynamoClient.put({
-         TableName: 'renomate-projects',
-         Item: marshall(projectItem)
-       }).promise();
-       
-       return {
-         statusCode: 200,
-         headers: {
-           'Content-Type': 'application/json',
-           'Access-Control-Allow-Origin': '*',
-           'Access-Control-Allow-Credentials': true
-         },
-         body: JSON.stringify({
-           jobId,
-           projectId,
-           status: 'COMPLETE'
-         })
-       };
-     } catch (error) {
-       console.error('Error:', error);
-       return {
-         statusCode: 500,
-         headers: {
-           'Content-Type': 'application/json',
-           'Access-Control-Allow-Origin': '*',
-           'Access-Control-Allow-Credentials': true
-         },
-         body: JSON.stringify({
-           message: 'Failed to process image and generate results',
-           error: error.message
-         })
-       };
-     }
-   };
-   
-   function generateMockSuggestions(roomType) {
-     // Return room-specific suggestions based on room type
-     switch(roomType.toLowerCase()) {
-       case 'bathroom':
-         return [
-           {
-             id: '1',
-             title: "Paint Wall (Soft Neutral)",
-             description: "Painted the upper wall a neutral, modern tone (light beige or off-white) to freshen the look and make the space feel larger.",
-             cost: 150
-           },
-           {
-             id: '2',
-             title: "Replace Shower Curtain & Rod",
-             description: "Swapped outdated floral curtain with a clean white waffle-style curtain and upgraded to a sleek chrome rod.",
-             cost: 80
-           },
-           // Add more bathroom suggestions
-         ];
-       case 'kitchen':
-         return [
-           {
-             id: '1',
-             title: "Update Cabinet Hardware",
-             description: "Replaced outdated knobs with modern matte black handles for a contemporary look.",
-             cost: 75
-           },
-           // Add more kitchen suggestions
-         ];
-       // Add more room types
-       default:
-         return [
-           {
-             id: '1',
-             title: "Fresh Paint",
-             description: "Applied a new coat of paint in a modern color palette.",
-             cost: 100
-           },
-           {
-             id: '2',
-             title: "Update Lighting",
-             description: "Installed new light fixtures for improved ambiance.",
-             cost: 120
-           }
-         ];
-     }
-   }
-   ```
-
-2. **Create ListUserProjects Lambda**
-   - Implement a new Lambda function to list all projects for a user
-   - Create API Gateway route `/projects` pointing to this Lambda
-   - Sample code:
-   ```javascript
-   const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-   const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
-   
-   const client = new DynamoDBClient();
-   const docClient = DynamoDBDocumentClient.from(client);
-   
-   exports.handler = async (event) => {
-     try {
-       // Get user ID from JWT
-       const userId = event.requestContext.authorizer.jwt.claims.sub;
-       
-       // Query DynamoDB for user's projects
-       const command = new QueryCommand({
-         TableName: 'renomate-projects',
-         KeyConditionExpression: 'userId = :userId',
-         ExpressionAttributeValues: {
-           ':userId': userId
-         }
-       });
-       
-       const response = await docClient.send(command);
-       
-       return {
-         statusCode: 200,
-         headers: {
-           'Content-Type': 'application/json',
-           'Access-Control-Allow-Origin': '*',
-           'Access-Control-Allow-Credentials': true
-         },
-         body: JSON.stringify(response.Items)
-       };
-     } catch (error) {
-       console.error('Error:', error);
-       return {
-         statusCode: 500,
-         headers: {
-           'Content-Type': 'application/json',
-           'Access-Control-Allow-Origin': '*',
-           'Access-Control-Allow-Credentials': true
-         },
-         body: JSON.stringify({
-           message: 'Failed to retrieve user projects',
-           error: error.message
-         })
-       };
-     }
-   };
-   ```
-
-3. **Update Projects Page in Frontend**
-   - Modify the Projects page to fetch and display real projects
-   - Sample code:
-   ```jsx
-   import { useState, useEffect } from "react";
-   import { useAuth } from "@clerk/clerk-react";
-   import PageContainer from "@/components/layout/PageContainer";
-   import { ProjectCard } from "@/components/projects/ProjectCard";
-   import { LoadingIndicator } from "@/components/ui/loading";
-   
-   const Projects = () => {
-     const [projects, setProjects] = useState([]);
-     const [isLoading, setIsLoading] = useState(true);
-     const [error, setError] = useState(null);
-     const { getToken } = useAuth();
-     
-     useEffect(() => {
-       const fetchProjects = async () => {
-         try {
-           // Get token with correct template
-           const token = await getToken({ template: "RenoMateBackendAPI" });
-           
-           // Fetch projects from API
-           const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/projects`, {
-             headers: {
-               'Authorization': `Bearer ${token}`
-             }
-           });
-           
-           if (!response.ok) {
-             throw new Error("Failed to fetch projects");
-           }
-           
-           const data = await response.json();
-           setProjects(data);
-         } catch (error) {
-           console.error("Error fetching projects:", error);
-           setError(error.message);
-         } finally {
-           setIsLoading(false);
-         }
-       };
-       
-       fetchProjects();
-     }, [getToken]);
-     
-     if (isLoading) {
-       return (
-         <PageContainer>
-           <LoadingIndicator />
-         </PageContainer>
-       );
-     }
-     
-     if (error) {
-       return (
-         <PageContainer>
-           <div className="text-red-600">{error}</div>
-         </PageContainer>
-       );
-     }
-     
-     return (
-       <PageContainer>
-         <h1 className="text-xl font-semibold mb-6">My Projects</h1>
-         
-         {projects.length === 0 ? (
-           <div className="text-center py-12">
-             <p>You don't have any projects yet.</p>
-             <button
-               className="mt-4 px-4 py-2 bg-budget-accent text-white rounded-md"
-               onClick={() => navigate('/new-project')}
-             >
-               Create Your First Project
-             </button>
-           </div>
-         ) : (
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-             {projects.map(project => (
-               <ProjectCard key={project.id} project={project} />
-             ))}
-           </div>
-         )}
-       </PageContainer>
-     );
-   };
-   
-   export default Projects;
-   ```
-
-4. **Create Project Card Component**
-   - Create a reusable component for displaying project cards
-   - Sample code:
-   ```jsx
-   import { Link } from "react-router-dom";
-   import { formatDistance } from "date-fns";
-   
-   export function ProjectCard({ project }) {
-     // Calculate time since creation
-     const timeAgo = formatDistance(
-       new Date(project.createdAt),
-       new Date(),
-       { addSuffix: true }
-     );
-     
-     // Determine which image to show (prioritize after image if available)
-     const imageUrl = project.afterImageKey 
-       ? `${import.meta.env.VITE_S3_BASE_URL}/${project.afterImageKey}`
-       : `${import.meta.env.VITE_S3_BASE_URL}/${project.beforeImageKey}`;
-     
-     return (
-       <Link to={`/project/${project.id}`} className="block">
-         <div className="rounded-lg overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
-           <div className="aspect-video relative">
-             <img
-               src={imageUrl}
-               alt={project.title}
-               className="w-full h-full object-cover"
-             />
-             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-               <h3 className="text-white font-semibold truncate">{project.title}</h3>
-             </div>
-           </div>
-           <div className="p-4">
-             <div className="flex justify-between items-center mb-2">
-               <span className="text-sm text-muted-foreground">{project.roomType}</span>
-               <span className="text-sm font-medium text-budget-accent">
-                 ${project.totalCost}
-               </span>
-             </div>
-             <div className="text-xs text-muted-foreground">
-               Created {timeAgo}
-             </div>
-           </div>
-         </div>
-       </Link>
-     );
-   }
-   ```
-
-5. **Update GetProjectStatus Lambda for Mock Implementation**
-   - Modify the Lambda to consistently return "COMPLETE" status
-   - This simplifies testing by not requiring real processing
-
-6. **Create GetProject Lambda for Project Details**
-   - Implement a Lambda to get a single project by ID
-   - Create API Gateway route `/project/{projectId}`
-
-After completing these steps, you'll have a fully functional UI flow that:
-1. Allows users to upload/select photos
-2. Collects project details
-3. Creates mock project results
-4. Displays projects in the My Rooms/Projects list
-5. Shows detailed project information
-
-This approach lets you fully demonstrate the application workflow without implementing the AI generation components, which can be added later as an enhancement.
-
-## 6. Future Enhancements / Refactoring
-
-*   **Upload Component Refactoring:** Review `RoomPhotoUpload.tsx` / `NewProject.tsx` for potential simplification of state management during the multi-step upload process (e.g., using a state machine or breaking into smaller components).
-*   **Error Handling Granularity:** Improve specificity of error messages displayed to the user based on different failure points (upload, generation, API errors).
-*   **Code Splitting:** Implement code splitting (e.g., route-based) to reduce initial bundle size and improve loading performance.
-*   **Testing Coverage:** Increase unit and integration test coverage, particularly for complex UI interactions and API integrations.
-*   **Backend Scalability:** Evaluate and implement strategies for handling increased load on Lambda functions and potential bottlenecks (e.g., concurrency limits, database capacity).
+4. **Documentation**
+   - Keep API documentation updated
+   - Document deployment procedures
+   - Maintain infrastructure diagrams
+   - Update troubleshooting guides

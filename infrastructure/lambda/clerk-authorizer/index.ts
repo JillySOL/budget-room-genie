@@ -1,36 +1,44 @@
 import { APIGatewayTokenAuthorizerEvent, APIGatewayAuthorizerResult } from 'aws-lambda';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
-import { verify } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
-const secretsManager = new SecretsManagerClient();
+const secretsClient = new SecretsManagerClient({});
 
-async function getSecret(secretName: string): Promise<string> {
-  const command = new GetSecretValueCommand({
-    SecretId: secretName,
-  });
-  const response = await secretsManager.send(command);
-  const secret = JSON.parse(response.SecretString || '{}');
-  return secret.secretKey || secret.apiKey || secret.url || secret.key;
+interface ClerkJWTPayload {
+  azp: string;  // Authorized party (your API endpoint)
+  sub: string;  // Subject (user ID)
+  exp: number;  // Expiration time
+  iat: number;  // Issued at time
 }
 
-export const handler = async (
-  event: APIGatewayTokenAuthorizerEvent
-): Promise<APIGatewayAuthorizerResult> => {
+export const handler = async (event: APIGatewayTokenAuthorizerEvent): Promise<APIGatewayAuthorizerResult> => {
   try {
-    const token = event.authorizationToken;
-    if (!token) {
-      throw new Error('No authorization token provided');
+    // Get Clerk secret key from Secrets Manager
+    const secretResponse = await secretsClient.send(
+      new GetSecretValueCommand({
+        SecretId: process.env.CLERK_SECRET_KEY_NAME,
+      })
+    );
+
+    const clerkSecretKey = secretResponse.SecretString;
+    if (!clerkSecretKey) {
+      throw new Error('Clerk secret key not found');
     }
 
-    // Get Clerk secret key from Secrets Manager
-    const clerkSecretKey = await getSecret(process.env.CLERK_SECRET_KEY_NAME || '');
+    // Extract token from Authorization header
+    const token = event.authorizationToken.replace('Bearer ', '');
 
-    // Verify the JWT token
-    const decoded = verify(token, clerkSecretKey);
+    // Verify JWT
+    const decoded = jwt.verify(token, clerkSecretKey) as ClerkJWTPayload;
 
-    // Return IAM policy
+    // Verify audience (azp) matches your API endpoint
+    if (decoded.azp !== 'https://jiov4el7d0.execute-api.ap-southeast-2.amazonaws.com') {
+      throw new Error('Invalid token audience');
+    }
+
+    // Generate IAM policy
     return {
-      principalId: decoded.sub || 'user',
+      principalId: decoded.sub,
       policyDocument: {
         Version: '2012-10-17',
         Statement: [
@@ -43,7 +51,6 @@ export const handler = async (
       },
       context: {
         userId: decoded.sub,
-        email: decoded.email,
       },
     };
   } catch (error) {
