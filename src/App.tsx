@@ -12,6 +12,7 @@ import ExplorePage from "./pages/ExplorePage";
 import NotFound from "./pages/NotFound";
 import OnboardingPage from "./pages/OnboardingPage";
 import LoginPage from "./pages/LoginPage";
+import ProfilePage from "./pages/ProfilePage";
 import BottomNav from "./components/navigation/BottomNav";
 import { Loader2 } from 'lucide-react';
 
@@ -65,6 +66,7 @@ const App = () => {
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/new-project" element={<NewProjectPage />} />
                 <Route path="/project/:id" element={<ProjectDetailPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
               </Route>
             </Route>
 
