@@ -46,11 +46,13 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ photoUrls, isLoading, error
     <>
       <div className="grid grid-cols-3 gap-2">
         {photoUrls.map((url, index) => (
-          <div key={index} className="relative group aspect-square">
+          <div key={index} className="relative group aspect-square bg-muted rounded-md overflow-hidden">
             <img
               src={url}
               alt={`User photo ${index + 1}`}
-              className="w-full h-full object-cover rounded-md bg-muted"
+              className="w-full h-full object-cover transition-opacity duration-300 opacity-0"
+              loading="lazy"
+              onLoad={(e) => e.currentTarget.style.opacity = '1'}
             />
             {/* Placeholder for Delete Button */}
           </div>

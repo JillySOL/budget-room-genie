@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
@@ -19,7 +18,13 @@ const RoomProject = ({ title, image, value, roi, progress, link }: RoomProjectPr
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
         <div className="flex items-center gap-5">
           <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
-            <img src={image} alt={title} className="w-full h-full object-cover" />
+            <img 
+              src={image} 
+              alt={title} 
+              className="w-full h-full object-cover transition-opacity duration-300 opacity-0"
+              loading="lazy"
+              onLoad={(e) => e.currentTarget.style.opacity = '1'}
+            />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-col gap-2 mb-3">

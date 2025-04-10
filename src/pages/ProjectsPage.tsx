@@ -69,7 +69,7 @@ const ProjectsPage = () => {
           </TabsList>
         </Tabs>
         
-        <div className="space-y-4">
+        <div className="space-y-4 transition-opacity duration-500 ease-in-out" style={{ opacity: loading ? 0 : 1 }}>
           {loading && (
             <div className="flex justify-center items-center h-40">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

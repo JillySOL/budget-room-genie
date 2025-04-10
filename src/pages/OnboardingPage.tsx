@@ -14,6 +14,7 @@ import { collection, addDoc, serverTimestamp, query, where, getDocs, QueryDocume
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast as sonnerToast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
+import ExistingPhotoSelector from "@/components/onboarding/ExistingPhotoSelector";
 
 const TOTAL_STEPS = 5;
 
@@ -238,65 +239,40 @@ const OnboardingPage = () => {
               ref={fileInputRef}
             />
 
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                className="flex flex-col items-center justify-center h-24 border-dashed gap-2"
-                onClick={triggerFileInput}
-                disabled={isUploading}
-              >
-                <Upload className="h-6 w-6 text-muted-foreground" />
-                <span className="text-sm text-center">Upload New Photo</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="flex flex-col items-center justify-center h-24 border-dashed gap-2"
-                disabled={isUploading || loadingProjects || existingProjects.length === 0}
-                onClick={() => { /* TODO: Implement logic to show/select existing photos */ }}
-              >
-                <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                <span className="text-sm text-center">Choose from Gallery</span>
-              </Button>
-            </div>
-
-            {(imagePreviewUrl || selectedExistingImageUrl) && (
+            {imagePreviewUrl && (
               <div className="mt-4">
-                <p className="text-sm font-medium mb-2">Selected Photo:</p>
-                <div className="relative w-full h-40 bg-muted rounded-lg overflow-hidden">
-                  <img src={imagePreviewUrl || selectedExistingImageUrl} alt="Preview" className="w-full h-full object-contain" />
+                <p className="text-sm font-medium mb-2 text-center">Selected Photo:</p>
+                <div className="relative w-full max-w-sm mx-auto h-48 bg-muted rounded-lg overflow-hidden border">
+                  <img src={imagePreviewUrl} alt="Selected preview" className="w-full h-full object-contain" />
                 </div>
                 {selectedFile && !isUploading && (
-                  <p className="text-xs text-center text-muted-foreground mt-1">New: {selectedFile.name}</p>
+                  <p className="text-xs text-center text-muted-foreground mt-1">New Upload: {selectedFile.name}</p>
                 )}
                 {selectedExistingImageUrl && !isUploading && (
-                  <p className="text-xs text-center text-muted-foreground mt-1">Existing Photo Selected</p>
+                  <p className="text-xs text-center text-muted-foreground mt-1">Selected from Gallery</p>
                 )}
               </div>
             )}
             
-            {loadingProjects && <p>Loading existing photos...</p>}
-            {!loadingProjects && existingProjects.length > 0 && (
-              <div className="mt-4">
-                 <h3 className="text-base font-medium mb-2">Your Gallery</h3>
-                 <div className="grid grid-cols-3 gap-2">
-                   {existingProjects.map((proj) => {
-                     const data = proj.data();
-                     if (data.uploadedImageURL && typeof data.uploadedImageURL === 'string') {
-                        const imageUrl = data.uploadedImageURL as string;
-                        return (
-                          <button 
-                            key={proj.id}
-                            onClick={() => handleSelectExisting(imageUrl)}
-                            className={`aspect-square rounded-md overflow-hidden border-2 ${selectedExistingImageUrl === imageUrl ? 'border-budget-teal' : 'border-transparent'} hover:border-gray-300`}
-                          >
-                            <img src={imageUrl} alt={data.projectName || 'Project image'} className="w-full h-full object-cover"/>
-                          </button>
-                       );
-                     }
-                     return null;
-                   })}
-                 </div>
-              </div>
+            <Button
+              variant={imagePreviewUrl ? "secondary" : "default"}
+              className="w-full gap-2 py-3 text-base"
+              onClick={triggerFileInput}
+              disabled={isUploading}
+            >
+              <Upload className="h-5 w-5" />
+              <span>{selectedFile ? "Change Uploaded Photo" : "Upload New Photo"}</span>
+            </Button>
+
+            <ExistingPhotoSelector 
+              projects={existingProjects}
+              isLoading={loadingProjects}
+              selectedUrl={selectedExistingImageUrl}
+              onSelect={handleSelectExisting}
+            />
+
+            {isUploading && (
+               <p className="text-xs text-center text-muted-foreground">Uploading...</p>
             )}
           </div>
         )}

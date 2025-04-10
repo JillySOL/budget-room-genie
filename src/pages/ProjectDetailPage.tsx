@@ -134,7 +134,7 @@ const ProjectDetailPage = () => {
   const afterImage = "/after.png";
 
   return (
-    <PageContainer>
+    <PageContainer className="transition-opacity duration-500 ease-in-out opacity-100">
       <div className="flex items-center mb-8">
         <Link to="/">
           <Button className="mr-2 tap-target" aria-label="Back to Home">
