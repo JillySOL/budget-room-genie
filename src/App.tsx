@@ -64,7 +64,6 @@ const App = () => {
               {/* Protected Routes within MainLayout */}
               <Route element={<ProtectedRoute />}>
                 <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/new-project" element={<NewProjectPage />} />
                 <Route path="/project/:id" element={<ProjectDetailPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>

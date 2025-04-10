@@ -1,10 +1,10 @@
-
 import React from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { HomeIcon, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import RoomProject from "./RoomProject";
 import RoomTypesSection from "./RoomTypesSection";
+import { Link } from "react-router-dom";
 
 const HomeTabs = () => {
   return (
@@ -39,9 +39,11 @@ const HomeTabs = () => {
         <div className="flex justify-center items-center h-40 bg-gray-50 rounded-xl border border-dashed border-gray-200">
           <div className="text-center">
             <p className="text-sm text-gray-500">No photos yet</p>
-            <Button variant="outline" size="sm" className="mt-2">
-              Upload Photos
-            </Button>
+            <Link to="/onboarding">
+              <Button variant="outline" size="sm" className="mt-2">
+                Upload Photos
+              </Button>
+            </Link>
           </div>
         </div>
       </TabsContent>

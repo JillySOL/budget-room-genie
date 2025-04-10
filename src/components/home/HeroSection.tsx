@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,7 @@ const HeroSection = () => {
         </Badge>
         
         <div className="flex flex-col items-center">
-          <Link to="/new-project">
+          <Link to="/onboarding">
             <Button size="lg" className="gap-1 shadow-sm relative overflow-hidden group">
               <Sparkles className="h-4 w-4 relative z-10" />
               <span className="relative z-10">Start My Free Room Flip</span>

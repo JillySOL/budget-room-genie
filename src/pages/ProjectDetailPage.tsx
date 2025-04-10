@@ -1,10 +1,8 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
-import { IMAGES } from "@/constants/images";
 import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter.tsx";
 import {
   Accordion,
@@ -12,6 +10,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { db } from "@/firebase-config";
+import { doc, getDoc, DocumentData } from "firebase/firestore";
+import { Loader2 } from 'lucide-react';
 
 const BATHROOM_SUGGESTIONS = [
   {
@@ -59,8 +60,39 @@ const BATHROOM_SUGGESTIONS = [
 ];
 
 const ProjectDetailPage = () => {
-  const { id } = useParams();
-  
+  const { id } = useParams<{ id: string }>();
+  const [projectData, setProjectData] = useState<DocumentData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!id) {
+        setError("Project ID not found.");
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const docRef = doc(db, "projects", id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setProjectData(docSnap.data());
+        } else {
+          setError("Project not found.");
+        }
+      } catch (err) {
+        console.error("Error fetching project:", err);
+        setError("Failed to load project details.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProject();
+  }, [id]);
+
   const handleSaveToNotebook = () => {
     localStorage.setItem('savedDesign', JSON.stringify({
       id: "bathroom-refresh",
@@ -71,6 +103,34 @@ const ProjectDetailPage = () => {
     }));
   };
 
+  if (loading) {
+    return (
+      <PageContainer className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </PageContainer>
+    );
+  }
+
+  if (error) {
+    return (
+      <PageContainer className="flex justify-center items-center min-h-screen">
+        <p className="text-red-500">{error}</p>
+      </PageContainer>
+    );
+  }
+
+  if (!projectData) {
+    return (
+       <PageContainer className="flex justify-center items-center min-h-screen">
+         <p>Project data could not be loaded.</p>
+       </PageContainer>
+    );
+  }
+
+  const projectName = projectData.projectName || "My Project";
+  const beforeImage = projectData.uploadedImageURL;
+  const afterImagePlaceholder = "/placeholder-after.png";
+
   return (
     <PageContainer>
       <div className="flex items-center mb-8">
@@ -79,13 +139,13 @@ const ProjectDetailPage = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <h1 className="text-xl font-semibold">Bathroom Renovation</h1>
+        <h1 className="text-xl font-semibold">{projectName}</h1>
       </div>
       
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-budget-dark">Budget-Friendly Refresh</h2>
+            <h2 className="text-xl font-semibold text-budget-dark">{projectName}</h2>
             <span className="bg-[#E6F4EA] text-green-800 text-sm font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 19V5M5 12l7-7 7 7"/>
@@ -95,8 +155,8 @@ const ProjectDetailPage = () => {
           </div>
 
           <EnhancedBeforeAfter
-            beforeImage={IMAGES.BEFORE}
-            afterImage={IMAGES.AFTER}
+            beforeImage={beforeImage}
+            afterImage={afterImagePlaceholder}
             className="mb-6"
           />
           

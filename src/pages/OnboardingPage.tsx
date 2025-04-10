@@ -1,16 +1,30 @@
-
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Home, Paintbrush, Hammer, DollarSign, Camera, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, ArrowRight, Home, Paintbrush, Hammer, DollarSign, Camera, Check, Upload, Image as ImageIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Logo from "@/components/ui-custom/Logo";
 import StyleChip from "@/components/ui-custom/StyleChip";
+import { useAuth } from "@/context/AuthContext";
+import { db, storage } from "@/firebase-config";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { toast as sonnerToast } from "sonner";
+import { v4 as uuidv4 } from 'uuid';
+
+const TOTAL_STEPS = 5;
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [userData, setUserData] = useState({
     roomType: "",
     budget: "500",
@@ -49,13 +63,81 @@ const OnboardingPage = () => {
     { id: "visual", name: "Just Visualize", description: "See ideas without commitment", icon: <Camera className="h-5 w-5" /> },
   ];
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    console.log("File selected:", file);
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setSelectedFile(null);
+      setImagePreviewUrl(null);
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleSaveProject = async () => {
+    console.log("handleSaveProject called");
+    console.log("Current user:", currentUser);
+    console.log("Selected file:", selectedFile);
+
+    if (!currentUser || !selectedFile) {
+      console.error("Save aborted: User not logged in or no image selected.");
+      sonnerToast.error("User not logged in or no image selected.");
+      return;
+    }
+
+    console.log("Proceeding with upload and save...");
+    setIsUploading(true);
+    sonnerToast.info("Creating project and uploading image...");
+
+    try {
+      const fileExtension = selectedFile.name.split('.').pop();
+      const uniqueFilename = `${uuidv4()}.${fileExtension}`;
+      const storageRef = ref(storage, `user-uploads/${currentUser.uid}/${uniqueFilename}`);
+      console.log("Uploading to:", storageRef.fullPath);
+      await uploadBytes(storageRef, selectedFile);
+      console.log("Upload successful");
+      const uploadedImageURL = await getDownloadURL(storageRef);
+      console.log("Got download URL:", uploadedImageURL);
+
+      const projectData = {
+        ...userData,
+        userId: currentUser.uid,
+        uploadedImageURL: uploadedImageURL,
+        createdAt: serverTimestamp(),
+        projectName: `${userData.style || 'My'} ${userData.roomType || 'Room'} Project`,
+      };
+      console.log("Saving project data to Firestore:", projectData);
+
+      const docRef = await addDoc(collection(db, "projects"), projectData);
+      console.log("Document written with ID: ", docRef.id);
+      sonnerToast.success("Project created successfully!");
+      navigate(`/project/${docRef.id}`);
+
+    } catch (error) {
+      console.error("Error creating project:", error);
+      sonnerToast.error("Failed to create project. Please try again.");
+    } finally {
+      console.log("Setting isUploading to false");
+      setIsUploading(false);
+    }
+  };
+
   const handleNextStep = () => {
-    if (currentStep < 4) {
+    console.log(`handleNextStep called, currentStep: ${currentStep}, TOTAL_STEPS: ${TOTAL_STEPS}`);
+    if (currentStep < TOTAL_STEPS) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Save user preferences and redirect
-      localStorage.setItem("userPreferences", JSON.stringify(userData));
-      navigate("/");
+      console.log("Final step reached, calling handleSaveProject...");
+      handleSaveProject();
     }
   };
 
@@ -67,6 +149,18 @@ const OnboardingPage = () => {
     }
   };
 
+  const isNextDisabled = () => {
+    if (isUploading) return true;
+    switch (currentStep) {
+      case 1: return !selectedFile;
+      case 2: return !userData.roomType;
+      case 3: return !userData.budget;
+      case 4: return !userData.style;
+      case 5: return !userData.renovationType;
+      default: return false;
+    }
+  };
+
   return (
     <PageContainer className="flex flex-col min-h-screen">
       <div className="flex items-center justify-between mb-6">
@@ -74,25 +168,54 @@ const OnboardingPage = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <Logo size="sm" />
-        <div className="w-8"></div> {/* Empty div for alignment */}
+        <div className="w-8"></div>
       </div>
 
-      <div className="flex justify-between mb-6">
-        {[1, 2, 3, 4].map((step) => (
-          <div 
-            key={step}
-            className={`h-1 flex-1 mx-0.5 rounded-full ${
-              step <= currentStep ? "bg-budget-teal" : "bg-muted"
-            }`}
-          />
-        ))}
-      </div>
+      <Progress value={(currentStep / TOTAL_STEPS) * 100} className="w-full mb-6 h-1" />
 
       <div className="flex-1">
         {currentStep === 1 && (
           <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl font-semibold">G'day! What room are you looking to flip?</h2>
-            <p className="text-sm text-muted-foreground">Select the room you want to transform</p>
+            <h2 className="text-xl font-semibold">Upload a 'before' photo</h2>
+            <p className="text-sm text-muted-foreground">Show us the starting point for your room.</p>
+
+            <Input
+              id="file-upload"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+              ref={fileInputRef}
+            />
+
+            <Button
+              variant="outline"
+              className="w-full flex flex-col items-center justify-center h-40 border-dashed gap-2"
+              onClick={triggerFileInput}
+              disabled={isUploading}
+            >
+              {imagePreviewUrl ? (
+                 <img src={imagePreviewUrl} alt="Preview" className="max-h-32 object-contain rounded" />
+              ) : (
+                <>
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Click to upload image</span>
+                </>
+              )}
+            </Button>
+            {selectedFile && !isUploading && (
+              <p className="text-xs text-center text-muted-foreground">Selected: {selectedFile.name}</p>
+            )}
+            {isUploading && (
+               <p className="text-xs text-center text-muted-foreground">Uploading...</p>
+            )}
+          </div>
+        )}
+
+        {currentStep === 2 && (
+          <div className="space-y-6 animate-fade-in">
+            <h2 className="text-xl font-semibold">What room are you flipping?</h2>
+            <p className="text-sm text-muted-foreground">Select the room type</p>
             
             <div className="grid grid-cols-2 gap-3">
               {roomTypes.map((room) => (
@@ -117,10 +240,10 @@ const OnboardingPage = () => {
           </div>
         )}
 
-        {currentStep === 2 && (
+        {currentStep === 3 && (
           <div className="space-y-6 animate-fade-in">
             <h2 className="text-xl font-semibold">What's your budget?</h2>
-            <p className="text-sm text-muted-foreground">We'll customize DIY suggestions to fit</p>
+            <p className="text-sm text-muted-foreground">We'll customize suggestions to fit</p>
             
             <div className="space-y-3">
               {budgetOptions.map((option) => (
@@ -145,10 +268,10 @@ const OnboardingPage = () => {
           </div>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 4 && (
           <div className="space-y-6 animate-fade-in">
             <h2 className="text-xl font-semibold">What style do you prefer?</h2>
-            <p className="text-sm text-muted-foreground">Pick a design direction for your space</p>
+            <p className="text-sm text-muted-foreground">Pick a design direction</p>
             
             <div className="flex flex-wrap gap-2">
               {styleOptions.map((style) => (
@@ -163,10 +286,10 @@ const OnboardingPage = () => {
           </div>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 5 && (
           <div className="space-y-6 animate-fade-in">
             <h2 className="text-xl font-semibold">What type of renovation?</h2>
-            <p className="text-sm text-muted-foreground">Choose the approach that works for you</p>
+            <p className="text-sm text-muted-foreground">Choose the approach</p>
             
             <div className="space-y-3">
               {renovationTypes.map((type) => (
@@ -199,14 +322,10 @@ const OnboardingPage = () => {
         <Button
           className="w-full flex items-center justify-center gap-2"
           onClick={handleNextStep}
-          disabled={
-            (currentStep === 1 && !userData.roomType) ||
-            (currentStep === 3 && !userData.style) ||
-            (currentStep === 4 && !userData.renovationType)
-          }
+          disabled={isNextDisabled()}
         >
-          {currentStep < 4 ? "Continue" : "Save & Finish"}
-          <ArrowRight className="h-4 w-4" />
+          {isUploading ? "Creating Project..." : (currentStep < TOTAL_STEPS ? "Continue" : "Generate Designs")}
+          {!isUploading && <ArrowRight className="h-4 w-4" />}
         </Button>
       </div>
     </PageContainer>
