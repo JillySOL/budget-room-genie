@@ -4,7 +4,7 @@ import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ArrowRight, Home, Paintbrush, Hammer, DollarSign, Camera, Check, Upload, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Home, Paintbrush, Hammer, DollarSign, Camera, Check, Upload, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Logo from "@/components/ui-custom/Logo";
 import StyleChip from "@/components/ui-custom/StyleChip";
@@ -28,6 +28,7 @@ const OnboardingPage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [existingProjects, setExistingProjects] = useState<QueryDocumentSnapshot<DocumentData>[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [userData, setUserData] = useState({
     roomType: "",
@@ -139,6 +140,7 @@ const OnboardingPage = () => {
     }
     
     setIsUploading(true);
+    setSubmissionError(null);
 
     try {
       if (needsUpload && selectedFile) {
@@ -175,7 +177,9 @@ const OnboardingPage = () => {
 
     } catch (error) {
       console.error("Error creating project:", error);
-      sonnerToast.error("Failed to create project. Please try again.");
+      const errorMsg = error instanceof Error ? error.message : "Failed to create project. Please try again.";
+      setSubmissionError(errorMsg);
+      sonnerToast.error(errorMsg);
     } finally {
       console.log("Setting isUploading to false");
       setIsUploading(false);
@@ -195,8 +199,9 @@ const OnboardingPage = () => {
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+      setSubmissionError(null);
     } else {
-      navigate("/new-project");
+      navigate("/");
     }
   };
 
@@ -421,18 +426,18 @@ const OnboardingPage = () => {
               ))}
             </div>
             
-            {error && (
-              <div className="p-3 bg-red-50 text-red-600 rounded-md text-sm">
-                {error}
+            {submissionError && (
+              <div className="mt-4 text-center p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                {submissionError}
               </div>
             )}
             
             <Button
               className="w-full flex items-center justify-center gap-2 mt-6 bg-budget-accent hover:bg-budget-accent/90"
               onClick={handleNextStep}
-              disabled={!userData.renovationType || isSubmitting}
+              disabled={!userData.renovationType || isUploading}
             >
-              {isSubmitting ? (
+              {isUploading ? (
                 <>Processing...</>
               ) : (
                 <>
@@ -449,11 +454,22 @@ const OnboardingPage = () => {
         <Button
           className="w-full flex items-center justify-center gap-2"
           onClick={handleNextStep}
-          disabled={isNextDisabled()}
+          disabled={isNextDisabled() || isUploading}
         >
           {isUploading ? "Creating Project..." : (currentStep < TOTAL_STEPS ? "Continue" : "Generate Designs")}
           {!isUploading && <ArrowRight className="h-4 w-4" />}
         </Button>
+      </div>
+
+      <div className="mt-auto pt-4 border-t bg-background sticky bottom-0 px-4 py-3">
+        <div className="flex justify-between items-center">
+          <Button variant="ghost" onClick={handleBack} disabled={isUploading}> 
+            Back
+          </Button>
+          <Button onClick={handleNextStep} disabled={isNextDisabled() || isUploading}> 
+            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : (currentStep === TOTAL_STEPS ? "Create Project" : "Next")}
+          </Button>
+        </div>
       </div>
     </PageContainer>
   );

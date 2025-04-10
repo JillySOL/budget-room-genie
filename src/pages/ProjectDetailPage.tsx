@@ -191,19 +191,19 @@ const ProjectDetailPage = () => {
             </AccordionItem>
           </Accordion>
           
-          <div className="flex flex-col sm:flex-row justify-end gap-3">
-            <Button className="gap-2" disabled title="Functionality coming soon">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
+            <Button className="gap-2 w-full sm:w-auto" disabled title="Functionality coming soon">
               <Download className="h-4 w-4" />
               Save to My Projects 
             </Button>
             <Button 
               variant="outline"
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
               onClick={handleSaveToNotebook}
             >
               <span className="mr-1">📝</span> Save to Notebook
             </Button>
-            <Button onClick={handleDownload} className="gap-2" disabled title="Functionality coming soon">
+            <Button onClick={handleDownload} className="gap-2 w-full sm:w-auto" disabled title="Functionality coming soon">
               <Download className="h-4 w-4" />
               Download Results
             </Button>

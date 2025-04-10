@@ -1,4 +1,3 @@
-
 import React from "react";
 import RoomTypeCard from "./RoomTypeCard";
 
@@ -7,25 +6,25 @@ const ROOM_TYPES = [
   {
     name: "Bedroom",
     image: "/lovable-uploads/ff66ab71-8056-4e11-8f9c-5ca7bcd63501.png",
-    link: "/new-project?room=bedroom",
+    link: "/onboarding?room=bedroom",
     valueIncrease: "$12,000+"
   },
   {
     name: "Living Room",
     image: "/lovable-uploads/e6b83d6a-eeaf-4229-be7d-8dea49c70b2f.png",
-    link: "/new-project?room=living-room",
+    link: "/onboarding?room=living-room",
     valueIncrease: "$15,000+"
   },
   {
     name: "Kitchen",
     image: "/lovable-uploads/e6b83d6a-eeaf-4229-be7d-8dea49c70b2f.png",
-    link: "/new-project?room=kitchen",
+    link: "/onboarding?room=kitchen",
     valueIncrease: "$20,000+"
   },
   {
     name: "Bathroom",
     image: "/after.png",
-    link: "/new-project?room=bathroom",
+    link: "/onboarding?room=bathroom",
     valueIncrease: "$18,000+"
   }
 ];

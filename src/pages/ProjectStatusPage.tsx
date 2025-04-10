@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@clerk/clerk-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Cpu } from "lucide-react";
+import { ArrowLeft, Loader2, Cpu, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { motion } from 'framer-motion';
 
 const messages = [
   "Consulting the design blueprints...",
@@ -17,11 +15,10 @@ const messages = [
 ];
 
 const ProjectStatusPage = () => {
+  const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { getToken } = useAuth();
   
-  const projectId = location.state?.projectId;
+  const projectId = jobId;
   const [currentMessage, setCurrentMessage] = useState(messages[0]);
   
   useEffect(() => {
@@ -64,9 +61,13 @@ const ProjectStatusPage = () => {
   const handleRetry = () => {
     navigate("/new-project");
   };
+
+  const handleStartNew = () => {
+    navigate('/onboarding');
+  };
   
   return (
-    <PageContainer>
+    <PageContainer className="flex flex-col items-center justify-center min-h-screen text-center p-4">
       <div className="flex items-center mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate("/projects")} className="mr-2">
           <ArrowLeft className="h-4 w-4" />
@@ -74,47 +75,27 @@ const ProjectStatusPage = () => {
         <h1 className="text-xl font-semibold">Creating Your Project</h1>
       </div>
       
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6"
-      >
-        <motion.div
-          animate={{
-            scale: [1, 1.15, 1],
-            rotate: [0, 6, -6, 0],
-          }}
-          transition={{
-            duration: 1.5,
-            ease: "easeInOut",
-            repeat: Infinity,
-            repeatDelay: 0.5
-          }}
-        >
-          <Cpu className="w-16 h-16 text-budget-accent stroke-[1.5]" />
-        </motion.div>
+      <div className="max-w-md w-full space-y-6">
         <div className="relative h-8 w-full max-w-xs overflow-hidden">
-            <motion.p 
-              key={currentMessage}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.4, ease: 'easeInOut' }}
-              className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-muted-foreground"
-            >
-              {currentMessage}
-            </motion.p>
+          <p 
+            className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-muted-foreground"
+          >
+            {currentMessage}
+          </p>
         </div>
         <div className="w-40 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <motion.div 
-                className="h-full bg-budget-accent"
-                initial={{ width: "0%" }}
-                animate={{ width: "100%" }}
-                transition={{ duration: 3, ease: "linear" }}
-            />
+          <div 
+            className="h-full bg-budget-accent"
+          />
         </div>
-      </motion.div>
+        <Button 
+          className="gap-2"
+          onClick={() => navigate("/onboarding")}
+        >
+          <Plus className="h-4 w-4" />
+          Start Another Project
+        </Button>
+      </div>
     </PageContainer>
   );
 };

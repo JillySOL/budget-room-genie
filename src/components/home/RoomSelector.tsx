@@ -28,7 +28,7 @@ export const RoomSelector = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {ROOM_OPTIONS.map((room) => (
           <Link 
-            to="/new-project" 
+            to="/onboarding"
             key={room.name} 
             className="flex flex-col items-center p-5 bg-white rounded-xl shadow-sm border border-gray-100 text-center hover:shadow-md transition-all"
           >

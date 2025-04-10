@@ -12,34 +12,59 @@ This file tracks outstanding tasks, bugs, and potential improvements for the Bud
 - [ ] **Project Detail Page - Dynamic Data:**
     - Replace placeholder `+$18,000 Value` with actual calculated or stored value.
     - Replace placeholder `BATHROOM_SUGGESTIONS` with AI-generated or project-specific suggestions.
-    - Implement "Save to My Projects" / "Save to Notebook" functionality.
+    - Implement "Save to My Projects" / "Save to Notebook" functionality (Notebook saves to LocalStorage currently).
+    - Implement "Download Results" functionality.
 - [ ] **Project List Page - Dynamic Data:**
-    - Replace placeholder progress (10%) with actual project progress.
+    - Replace placeholder progress (10% or 50%) with actual project progress.
     - Replace placeholder `Value TBD` with actual value.
+    - Replace placeholder `Est. DIY Cost` with actual cost.
 - [ ] **Homepage "My Rooms" - Dynamic Data:**
     - Replace placeholder `Value TBD`, `ROI TBD`, and progress (10%) in `RoomProject` component with actual data.
+- [ ] **Auth State Handling (Logged Out):**
+    - Review pages/components shown when logged out (e.g., `ProjectsPage`, `HomeTabs`) and ensure they display appropriate content (e.g., login prompts) instead of attempting to load user data or showing empty states meant for logged-in users.
+
+## Completed / Recently Done
+
+- [x] **Refactoring:**
+    - [x] Extract `getUniquePhotoUrls` to `src/lib/utils.ts`.
+    - [x] Create `useUserProjects` hook to fetch project/photo data for `TabsContent.tsx`.
+    - [x] Extract `PhotoGallery` component from `TabsContent.tsx`.
+    - [x] Extract `ExistingPhotoSelector` component from `OnboardingPage.tsx`.
+- [x] **UX/Performance:**
+    - [x] Add lazy loading (`loading="lazy"`) to images where possible.
+    - [x] Add basic fade-in transitions on data load.
+- [x] **Legacy Code Removal:**
+    - [x] Remove old AWS (`lambda`, `infrastructure`) folders.
+    - [x] Remove Clerk/AWS dependencies and scripts from `package.json`.
+    - [x] Remove Clerk env vars from `.env`.
+    - [x] Remove `ClerkAuth.tsx`, `env.ts`.
+    - [x] Remove Clerk/AWS logic/comments from various components (`Projects.tsx`, `RoomPhotoUpload.tsx`, `ProjectCard.tsx`, `App.tsx`, `BottomNav.tsx`, `TabsContent.tsx`).
+    - [x] Fix related errors from merge/cleanup.
+- [x] **Navigation:**
+    - [x] Update Onboarding back button to go to `/`.
+    - [x] Update links pointing to `/new-project` to point to `/onboarding`.
+- [x] **Project Detail Page Button Formatting:** Fixed button layout.
+- [x] **`.gitignore`:** Added rule for Firebase Admin SDK keys.
 
 ## Suggestions & Future Improvements
 
 - **Refactoring:**
-    - [ ] Extract `getUniquePhotoUrls` from `TabsContent.tsx` into a utility file (e.g., `src/lib/utils.ts`).
-    - [ ] Refactor `OnboardingPage.tsx`: 
-        - Extract Step 1 (Photo Upload/Selection) into a sub-component.
-        - Simplify `handleSaveProject` logic, potentially breaking down steps.
-    - [ ] Consolidate Firebase interaction logic (fetching projects, photos, etc.) into dedicated service functions/hooks (e.g., `src/hooks/useProjects.ts`).
+    - [ ] Refactor `OnboardingPage.tsx` further (Step 1 sub-component, `handleSaveProject` simplification).
+    - [ ] Consolidate Firebase interaction logic further (e.g., dedicated service functions for CRUD operations).
 - **Performance:**
-    - [ ] **Lazy Loading:** Implement lazy loading for images, especially in the `PhotoGallery` and potentially project lists, to improve initial load times.
-    - [ ] **Pagination:** If users can have many projects, implement pagination for fetching all projects in `TabsContent.tsx` (for "My Photos") and potentially on the `ProjectsPage.tsx`.
-    - [ ] **Image Optimization:** Consider automatically resizing/optimizing images on upload to reduce storage costs and improve loading speed (requires backend/Firebase function).
+    - [ ] **Pagination:** Consider for project/photo fetching if lists become long.
+    - [ ] **Image Optimization:** Consider on upload (requires backend/Firebase function).
 - **Security:**
-    - [ ] **Firestore Security Rules:** Review and tighten Firestore security rules to ensure users can only read/write their own data. Pay close attention to rules for the `projects` collection.
-    - [ ] **Storage Security Rules:** Review and tighten Firebase Storage security rules to ensure users can only upload/delete their own photos and that file types/sizes are restricted.
-    - [ ] **Environment Variables:** Ensure sensitive keys (like `VITE_CLERK_SECRET_KEY`, `VITE_FIREBASE_API_KEY`) are not exposed client-side if they aren't strictly needed there. Consider moving backend-related keys to a secure backend environment.
+    - [ ] **Firestore Security Rules:** Review and tighten rules.
+    - [ ] **Storage Security Rules:** Review and tighten rules.
+    - [ ] **Environment Variables:** Review client-side exposure.
 - **User Experience (UX):**
-    - [ ] **Photo Deletion Confirmation:** Add a confirmation dialog before deleting a photo.
-    - [ ] **Clearer Loading/Error States:** Provide more specific feedback during loading or when errors occur.
-    - [ ] **Onboarding Flow:** Potentially refine the multi-step onboarding for better clarity.
-    - [ ] **Accessibility:** Perform an accessibility audit (keyboard navigation, screen reader support, color contrast).
+    - [ ] **Photo Deletion Confirmation:** Add dialog.
+    - [ ] **Clearer Loading/Error States:** Improve specificity.
+    - [ ] **Onboarding Flow:** Potential refinements.
+    - [ ] **Accessibility Audit:**.
 - **AI Integration:**
-    - [ ] Implement actual AI generation for the "after" image based on user input (style, budget, etc.).
-    - [ ] Generate AI-based DIY suggestions/cost estimates. 
+    - [ ] Implement actual AI generation.
+    - [ ] Generate AI-based DIY suggestions/costs.
+- **Testing:**
+    - [ ] Add unit/integration tests. 

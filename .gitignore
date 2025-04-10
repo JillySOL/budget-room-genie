@@ -52,3 +52,6 @@ cdk.out/
 .env
 .env.local
 .env.*.local
+
+# Firebase Admin SDK keys
+*-firebase-adminsdk-*.json

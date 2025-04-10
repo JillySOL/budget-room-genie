@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertCircle, CameraOff, Upload } from "lucide-react";
+import { Loader2, AlertCircle, CameraOff, Upload, PlusCircle, Image } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useFetchUserPhotos } from "@/hooks/useFetchUserPhotos";
 
@@ -27,41 +27,43 @@ const MyPhotosTab = () => {
 
   if (photos.length === 0) {
     return (
-      <div className="flex flex-col justify-center items-center h-40 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center p-4">
-        <CameraOff className="h-8 w-8 text-gray-400 mb-2" />
-        <p className="text-sm text-gray-500 mb-2">No photos yet</p>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/new-project">
-            Upload Your First Photo
+      <div className="text-center py-10 px-4 bg-gray-50 rounded-lg border border-dashed">
+        <Image className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">No photos yet</h3>
+        <p className="mt-1 text-sm text-gray-500">Upload your first room photo to get started.</p>
+        <div className="mt-6">
+          <Link to="/onboarding">
+            <Button type="button" className="gap-1.5">
+              <Upload className="h-4 w-4" />
+              Upload Photo
+            </Button>
           </Link>
-        </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/new-project" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Upload More
-          </Link>
-        </Button>
-      </div>
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-        {photos.map((photo) => (
-          <div key={photo.key} className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative group">
+      <div className="grid grid-cols-3 gap-2">
+        {photos.map((photo, index) => (
+          <div key={index} className="relative group aspect-square bg-muted rounded-md overflow-hidden">
             <img
               src={photo.url}
-              alt="User uploaded room photo"
-              className="w-full h-full object-cover"
-              onError={(e) => (e.currentTarget.src = '/placeholder-image.svg')} // Consider a better placeholder
+              alt={`User photo ${index + 1}`}
+              className="w-full h-full object-cover transition-opacity duration-300 opacity-0"
+              loading="lazy"
+              onLoad={(e) => e.currentTarget.style.opacity = '1'}
             />
-            {/* Optional: Add overlay/actions on hover */}
+            {/* Add delete button here later */}
           </div>
         ))}
       </div>
+      <Link to="/onboarding" className="flex items-center gap-2">
+        <Button variant="outline" className="w-full gap-2">
+          <PlusCircle className="h-4 w-4" /> Add More Photos
+        </Button>
+      </Link>
     </div>
   );
 };
