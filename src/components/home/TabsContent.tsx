@@ -1,12 +1,67 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { HomeIcon, Image } from "lucide-react";
+import { HomeIcon, Image, Loader2, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import RoomProject from "./RoomProject";
-import RoomTypesSection from "./RoomTypesSection";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/firebase-config";
+import { collection, query, where, orderBy, limit, getDocs, DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
+import PhotoGallery from "./PhotoGallery";
+import { getUniquePhotoUrls } from "@/lib/utils";
 
 const HomeTabs = () => {
+  const { currentUser } = useAuth();
+  const [recentProjects, setRecentProjects] = useState<QueryDocumentSnapshot<DocumentData>[]>([]);
+  const [userPhotos, setUserPhotos] = useState<string[]>([]);
+  const [loadingRecentProjects, setLoadingRecentProjects] = useState(true);
+  const [loadingAllPhotos, setLoadingAllPhotos] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProjectsAndPhotos = async () => {
+      if (!currentUser) {
+        setLoadingRecentProjects(false);
+        setLoadingAllPhotos(false);
+        return;
+      }
+      setLoadingRecentProjects(true);
+      setLoadingAllPhotos(true);
+      setFetchError(null);
+      
+      try {
+        const projectsRef = collection(db, "projects");
+        
+        // Fetch recent 3 projects
+        const recentQuery = query(
+          projectsRef,
+          where("userId", "==", currentUser.uid),
+          orderBy("createdAt", "desc"),
+          limit(3)
+        );
+        const recentSnapshot = await getDocs(recentQuery);
+        setRecentProjects(recentSnapshot.docs);
+        setLoadingRecentProjects(false);
+
+        // Fetch all projects for photos
+        const allProjectsQuery = query(projectsRef, where("userId", "==", currentUser.uid));
+        const allProjectsSnapshot = await getDocs(allProjectsQuery);
+        const allDocs = allProjectsSnapshot.docs;
+        setUserPhotos(getUniquePhotoUrls(allDocs));
+        setLoadingAllPhotos(false);
+
+      } catch (err) {
+        console.error("Error fetching projects/photos:", err);
+        const errorMsg = "Failed to load data. Please try again.";
+        setFetchError(errorMsg);
+        setLoadingRecentProjects(false);
+        setLoadingAllPhotos(false);
+      } 
+    };
+
+    fetchProjectsAndPhotos();
+  }, [currentUser]);
+
   return (
     <Tabs defaultValue="rooms" className="w-full">
       <TabsList className="w-full grid grid-cols-2 p-0.5 rounded-lg">
@@ -19,33 +74,51 @@ const HomeTabs = () => {
       </TabsList>
       
       <TabsContent value="rooms" className="mt-4">
-        <div className="space-y-6">
-          {/* Recently active project - Updated with subtle progress bar */}
-          <RoomProject
-            title="Bathroom Renovation"
-            image="/after.png"
-            value="+$18,000 Value"
-            roi="ROI: 360%"
-            progress={100}
-            link="/project/bathroom-refresh"
-          />
-          
-          {/* Room category cards */}
-          <RoomTypesSection />
+        <div className="space-y-4">
+          {loadingRecentProjects && (
+            <div className="flex justify-center items-center h-20">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {fetchError && (
+            <div className="text-center p-4 bg-red-50 text-red-700 rounded-lg text-sm">
+              {fetchError}
+            </div>
+          )}
+          {!loadingRecentProjects && !fetchError && recentProjects.length === 0 && (
+             <div className="text-center py-6 px-4 bg-gray-50 rounded-lg border border-dashed">
+               <p className="text-sm text-gray-600 mb-2">No rooms started yet.</p>
+               <Link to="/onboarding">
+                 <Button variant="outline" size="sm">Start Your First Room</Button>
+               </Link>
+             </div>
+           )}
+          {!loadingRecentProjects && !fetchError && recentProjects.map((doc) => {
+            const project = doc.data();
+            const projectId = doc.id;
+            const imageUrl = project.uploadedImageURL && typeof project.uploadedImageURL === 'string' ? project.uploadedImageURL : "/placeholder.svg"; 
+            
+            return (
+              <RoomProject
+                key={projectId}
+                title={project.projectName || 'Untitled Project'}
+                image={imageUrl}
+                value="Value TBD" 
+                roi="ROI TBD" 
+                progress={10} 
+                link={`/project/${projectId}`}
+              />
+            );
+          })}
         </div>
       </TabsContent>
       
       <TabsContent value="photos" className="mt-4">
-        <div className="flex justify-center items-center h-40 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-          <div className="text-center">
-            <p className="text-sm text-gray-500">No photos yet</p>
-            <Link to="/onboarding">
-              <Button variant="outline" size="sm" className="mt-2">
-                Upload Photos
-              </Button>
-            </Link>
-          </div>
-        </div>
+        <PhotoGallery 
+          photoUrls={userPhotos}
+          isLoading={loadingAllPhotos}
+          error={fetchError}
+        />
       </TabsContent>
     </Tabs>
   );

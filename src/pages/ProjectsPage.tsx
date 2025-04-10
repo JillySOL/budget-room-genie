@@ -92,25 +92,26 @@ const ProjectsPage = () => {
           {!loading && !error && projects.map((doc) => {
             const project = doc.data();
             const projectId = doc.id;
+            if (!project.uploadedImageURL || typeof project.uploadedImageURL !== 'string') {
+                console.warn(`Project ${projectId} skipped, missing or invalid uploadedImageURL`);
+                return null; 
+            }
             return (
-              <Link key={projectId} to={`/project/${projectId}`} className="block">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow overflow-hidden">
-                  <div className="relative h-40 w-full bg-gray-100">
-                   {project.uploadedImageURL ? (
-                     <img 
-                       src={project.uploadedImageURL} 
-                       alt={project.projectName || 'Project image'} 
-                       className="w-full h-full object-cover" 
-                     />
-                     ) : (
-                       <div className="flex items-center justify-center h-full text-gray-400">No Image</div>
-                     )
-                   }
-                  </div>
+              <div key={projectId} className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow overflow-hidden">
+                 <EnhancedBeforeAfter
+                    beforeImage={project.uploadedImageURL} 
+                    afterImage="/after.png"
+                    className="h-48"
+                  />
+                  
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium text-budget-dark text-lg truncate pr-2" title={project.projectName || 'Project'}>{project.projectName || 'Untitled Project'}</h3>
-                      <span className="bg-[#E6F4EA] text-green-800 text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1 whitespace-nowrap">
+                       <Link to={`/project/${projectId}`} className="flex-grow min-w-0">
+                          <h3 className="font-medium text-budget-dark text-lg truncate pr-2" title={project.projectName || 'Project'}>
+                            {project.projectName || 'Untitled Project'}
+                          </h3>
+                       </Link>
+                       <span className="bg-[#E6F4EA] text-green-800 text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M12 19V5M5 12l7-7 7 7"/>
                         </svg>
@@ -118,15 +119,18 @@ const ProjectsPage = () => {
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <Progress value={10} className="h-2 rounded-full bg-gray-100" /> 
-                        <span className="text-xs text-gray-500 mt-1 block">In Progress</span>
-                      </div>
-                      <ArrowRight className="h-5 w-5 text-budget-neutral ml-4 flex-shrink-0" />
+                       <div className="flex-1">
+                         <Link to={`/project/${projectId}`} className="block">
+                            <Progress value={10} className="h-2 rounded-full bg-gray-100" /> 
+                            <span className="text-xs text-gray-500 mt-1 block">In Progress</span>
+                         </Link>
+                       </div>
+                       <Link to={`/project/${projectId}`}>
+                         <ArrowRight className="h-5 w-5 text-budget-neutral ml-4 flex-shrink-0" />
+                       </Link>
                     </div>
                   </div>
-                </div>
-              </Link>
+              </div>
             );
           })}
         </div>

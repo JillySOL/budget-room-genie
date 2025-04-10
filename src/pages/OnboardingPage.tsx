@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import Logo from "@/components/ui-custom/Logo";
 import StyleChip from "@/components/ui-custom/StyleChip";
 import { useAuth } from "@/context/AuthContext";
 import { db, storage } from "@/firebase-config";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, getDocs, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast as sonnerToast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
@@ -23,7 +23,10 @@ const OnboardingPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [selectedExistingImageUrl, setSelectedExistingImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [existingProjects, setExistingProjects] = useState<QueryDocumentSnapshot<DocumentData>[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [userData, setUserData] = useState({
     roomType: "",
@@ -63,11 +66,35 @@ const OnboardingPage = () => {
     { id: "visual", name: "Just Visualize", description: "See ideas without commitment", icon: <Camera className="h-5 w-5" /> },
   ];
 
+  useEffect(() => {
+    const fetchProjects = async () => {
+      if (!currentUser) {
+        setLoadingProjects(false);
+        return;
+      }
+      setLoadingProjects(true);
+      try {
+        const projectsRef = collection(db, "projects");
+        const q = query(projectsRef, where("userId", "==", currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        setExistingProjects(querySnapshot.docs);
+      } catch (err) {         
+        console.error("Error fetching existing projects:", err);
+        sonnerToast.error("Failed to load existing photos.");
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    fetchProjects();
+  }, [currentUser]);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     console.log("File selected:", file);
     if (file) {
       setSelectedFile(file);
+      setSelectedExistingImageUrl(null);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreviewUrl(reader.result as string);
@@ -83,35 +110,58 @@ const OnboardingPage = () => {
     fileInputRef.current?.click();
   };
 
+  const handleSelectExisting = (imageUrl: string) => {
+    setSelectedExistingImageUrl(imageUrl);
+    setSelectedFile(null);
+    setImagePreviewUrl(imageUrl);
+  };
+
   const handleSaveProject = async () => {
     console.log("handleSaveProject called");
     console.log("Current user:", currentUser);
-    console.log("Selected file:", selectedFile);
+    let finalImageURL: string | null = selectedExistingImageUrl;
+    let needsUpload = false;
 
-    if (!currentUser || !selectedFile) {
-      console.error("Save aborted: User not logged in or no image selected.");
-      sonnerToast.error("User not logged in or no image selected.");
-      return;
+    if (selectedFile) {
+      finalImageURL = null;
+      needsUpload = true;
+    } else if (!selectedExistingImageUrl) {
+       console.error("Save aborted: No image selected.");
+       sonnerToast.error("Please select or upload an image.");
+       return;
     }
 
-    console.log("Proceeding with upload and save...");
+    if (!currentUser) {
+      console.error("Save aborted: User not logged in.");
+      sonnerToast.error("User not logged in.");
+      return;
+    }
+    
     setIsUploading(true);
-    sonnerToast.info("Creating project and uploading image...");
 
     try {
-      const fileExtension = selectedFile.name.split('.').pop();
-      const uniqueFilename = `${uuidv4()}.${fileExtension}`;
-      const storageRef = ref(storage, `user-uploads/${currentUser.uid}/${uniqueFilename}`);
-      console.log("Uploading to:", storageRef.fullPath);
-      await uploadBytes(storageRef, selectedFile);
-      console.log("Upload successful");
-      const uploadedImageURL = await getDownloadURL(storageRef);
-      console.log("Got download URL:", uploadedImageURL);
+      if (needsUpload && selectedFile) {
+        console.log("Proceeding with upload...");
+        sonnerToast.info("Uploading image...");
+        const fileExtension = selectedFile.name.split('.').pop();
+        const uniqueFilename = `${uuidv4()}.${fileExtension}`;
+        const storageRef = ref(storage, `user-uploads/${currentUser.uid}/${uniqueFilename}`);
+        await uploadBytes(storageRef, selectedFile);
+        finalImageURL = await getDownloadURL(storageRef);
+        console.log("Upload successful, URL:", finalImageURL);
+      } else {
+         console.log("Skipping upload, using existing image URL:", finalImageURL);
+      }
 
+      if (!finalImageURL) {
+        throw new Error("Image URL could not be determined.");
+      }
+
+      sonnerToast.info("Saving project details...");
       const projectData = {
         ...userData,
         userId: currentUser.uid,
-        uploadedImageURL: uploadedImageURL,
+        uploadedImageURL: finalImageURL,
         createdAt: serverTimestamp(),
         projectName: `${userData.style || 'My'} ${userData.roomType || 'Room'} Project`,
       };
@@ -152,7 +202,7 @@ const OnboardingPage = () => {
   const isNextDisabled = () => {
     if (isUploading) return true;
     switch (currentStep) {
-      case 1: return !selectedFile;
+      case 1: return !selectedFile && !selectedExistingImageUrl;
       case 2: return !userData.roomType;
       case 3: return !userData.budget;
       case 4: return !userData.style;
@@ -176,8 +226,8 @@ const OnboardingPage = () => {
       <div className="flex-1">
         {currentStep === 1 && (
           <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl font-semibold">Upload a 'before' photo</h2>
-            <p className="text-sm text-muted-foreground">Show us the starting point for your room.</p>
+            <h2 className="text-xl font-semibold">Choose a 'before' photo</h2>
+            <p className="text-sm text-muted-foreground">Upload a new photo or select one from your gallery.</p>
 
             <Input
               id="file-upload"
@@ -188,26 +238,65 @@ const OnboardingPage = () => {
               ref={fileInputRef}
             />
 
-            <Button
-              variant="outline"
-              className="w-full flex flex-col items-center justify-center h-40 border-dashed gap-2"
-              onClick={triggerFileInput}
-              disabled={isUploading}
-            >
-              {imagePreviewUrl ? (
-                 <img src={imagePreviewUrl} alt="Preview" className="max-h-32 object-contain rounded" />
-              ) : (
-                <>
-                  <Upload className="h-8 w-8 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Click to upload image</span>
-                </>
-              )}
-            </Button>
-            {selectedFile && !isUploading && (
-              <p className="text-xs text-center text-muted-foreground">Selected: {selectedFile.name}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                className="flex flex-col items-center justify-center h-24 border-dashed gap-2"
+                onClick={triggerFileInput}
+                disabled={isUploading}
+              >
+                <Upload className="h-6 w-6 text-muted-foreground" />
+                <span className="text-sm text-center">Upload New Photo</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="flex flex-col items-center justify-center h-24 border-dashed gap-2"
+                disabled={isUploading || loadingProjects || existingProjects.length === 0}
+                onClick={() => { /* TODO: Implement logic to show/select existing photos */ }}
+              >
+                <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                <span className="text-sm text-center">Choose from Gallery</span>
+              </Button>
+            </div>
+
+            {(imagePreviewUrl || selectedExistingImageUrl) && (
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-2">Selected Photo:</p>
+                <div className="relative w-full h-40 bg-muted rounded-lg overflow-hidden">
+                  <img src={imagePreviewUrl || selectedExistingImageUrl} alt="Preview" className="w-full h-full object-contain" />
+                </div>
+                {selectedFile && !isUploading && (
+                  <p className="text-xs text-center text-muted-foreground mt-1">New: {selectedFile.name}</p>
+                )}
+                {selectedExistingImageUrl && !isUploading && (
+                  <p className="text-xs text-center text-muted-foreground mt-1">Existing Photo Selected</p>
+                )}
+              </div>
             )}
-            {isUploading && (
-               <p className="text-xs text-center text-muted-foreground">Uploading...</p>
+            
+            {loadingProjects && <p>Loading existing photos...</p>}
+            {!loadingProjects && existingProjects.length > 0 && (
+              <div className="mt-4">
+                 <h3 className="text-base font-medium mb-2">Your Gallery</h3>
+                 <div className="grid grid-cols-3 gap-2">
+                   {existingProjects.map((proj) => {
+                     const data = proj.data();
+                     if (data.uploadedImageURL && typeof data.uploadedImageURL === 'string') {
+                        const imageUrl = data.uploadedImageURL as string;
+                        return (
+                          <button 
+                            key={proj.id}
+                            onClick={() => handleSelectExisting(imageUrl)}
+                            className={`aspect-square rounded-md overflow-hidden border-2 ${selectedExistingImageUrl === imageUrl ? 'border-budget-teal' : 'border-transparent'} hover:border-gray-300`}
+                          >
+                            <img src={imageUrl} alt={data.projectName || 'Project image'} className="w-full h-full object-cover"/>
+                          </button>
+                       );
+                     }
+                     return null;
+                   })}
+                 </div>
+              </div>
             )}
           </div>
         )}

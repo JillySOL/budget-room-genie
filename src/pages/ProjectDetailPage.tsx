@@ -128,8 +128,10 @@ const ProjectDetailPage = () => {
   }
 
   const projectName = projectData.projectName || "My Project";
-  const beforeImage = projectData.uploadedImageURL;
-  const afterImagePlaceholder = "/placeholder-after.png";
+  const beforeImage = projectData.uploadedImageURL && typeof projectData.uploadedImageURL === 'string' 
+                    ? projectData.uploadedImageURL 
+                    : "/placeholder.svg";
+  const afterImage = "/after.png";
 
   return (
     <PageContainer>
@@ -156,7 +158,7 @@ const ProjectDetailPage = () => {
 
           <EnhancedBeforeAfter
             beforeImage={beforeImage}
-            afterImage={afterImagePlaceholder}
+            afterImage={"/after.png"}
             className="mb-6"
           />
           
