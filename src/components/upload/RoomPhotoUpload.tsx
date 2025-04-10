@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from "@clerk/clerk-react";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, Upload, Loader2, X, CheckCircle, AlertTriangle, ImageIcon } from 'lucide-react';
@@ -31,8 +30,6 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Get userId along with getToken
-  const { userId, getToken } = useAuth();
   // Initialize navigate
   const navigate = useNavigate();
   // Fetch user photos using the hook
@@ -155,7 +152,7 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
       toast.error("No file selected for upload.");
       return;
     }
-    if (!userId) {
+    if (!selectedPhotoKey) {
       setError("User not authenticated.");
       toast.error("User not authenticated.");
       return; // Should not happen if component is rendered correctly
@@ -168,94 +165,22 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
     const file = selectedFile; // Use the file from state
 
     try {
-      // Get the JWT token from Clerk
-      const token = await getToken({ template: "RenoMateBackendAPI" });
-      if (!token) {
-        throw new Error('Authentication required');
-      }
+      // REMOVED Step 1: Get pre-signed URL from API Gateway
+      // We now upload directly using Firebase Storage in OnboardingPage
 
-      // Step 1: Get pre-signed URL from API Gateway
-      console.log('Requesting pre-signed URL...');
-      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/generate-upload-url`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          fileName: file.name,
-          contentType: file.type,
-          userId: userId, // Include userId
-        }),
-      });
+      // REMOVED Step 2: Upload image to S3 using the pre-signed URL
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to get upload URL:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText,
-          endpoint: `${import.meta.env.VITE_API_ENDPOINT}/generate-upload-url`,
-          requestHeaders: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer [redacted]'
-          }
-        });
-        throw new Error(`Failed to get upload URL: ${response.status} ${response.statusText}`);
-      }
-
-      const responseData = await response.json();
-      console.log('Response data:', responseData);
-
-      if (!responseData.uploadUrl || !responseData.key) {
-        console.error('Invalid response format:', responseData);
-        throw new Error('Server returned invalid response format');
-      }
-
-      const { uploadUrl, key } = responseData;
-      console.log('Got pre-signed URL:', { uploadUrl, key });
-
-      // Step 2: Upload file using pre-signed URL with progress tracking
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-
-        xhr.upload.addEventListener('progress', (event) => {
-          if (event.lengthComputable) {
-            const progress = (event.loaded / event.total) * 100;
-            setUploadProgress(Math.round(progress));
-          }
-        });
-
-        xhr.addEventListener('load', () => {
-          console.log('Upload response:', { status: xhr.status, statusText: xhr.statusText });
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
-          }
-        });
-
-        xhr.addEventListener('error', (error) => {
-          console.error('Upload error:', error);
-          reject(new Error('Network error during upload'));
-        });
-
-        console.log('Starting upload to:', uploadUrl);
-        xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', file.type);
-        xhr.send(file);
-      });
-
-      // Upload successful!
-      setUploadSuccess(true);
-      // Save the S3 key for later reference
-      setSelectedPhotoKey(key);
-      toast.success('Photo uploaded successfully!');
-      console.log('Upload successful:', { key });
-      // No automatic navigation here
-    } catch (error) {
-      console.error('Upload error:', error);
-      setError(error instanceof Error ? error.message : 'An unknown error occurred');
+      // TODO: Update this component if it's still used. 
+      // Currently, the upload logic is handled within OnboardingPage.tsx.
+      // If this component IS used, it needs refactoring for Firebase Storage.
+      
+      console.log("Placeholder: Upload logic needs update for Firebase.");
+      // Call onUploadComplete or equivalent if needed
+      // onUploadComplete(uploadResponse.key); // Pass Firebase path/URL?
+      
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
       toast.error('Failed to upload photo');
     } finally {
       setIsUploading(false);

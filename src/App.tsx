@@ -11,13 +11,13 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import ExplorePage from "./pages/ExplorePage";
 import NotFound from "./pages/NotFound";
 import OnboardingPage from "./pages/OnboardingPage";
-import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
-import BottomNav from "./components/navigation/BottomNav";
+import { BottomNav } from "./components/navigation/BottomNav";
 import { Loader2 } from 'lucide-react';
+import { AuthProvider } from "./context/AuthContext";
 
-// Get Clerk publishable key from environment variables
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+// Instantiate QueryClient
+const queryClient = new QueryClient();
 
 // Protected Route Component
 const ProtectedRoute = () => {
@@ -44,37 +44,37 @@ const MainLayout = () => (
 );
 
 const App = () => {
-  // No need for Clerk provider here anymore
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public Routes outside MainLayout - only Onboarding now */}
-            <Route path="/onboarding" element={<OnboardingPage />} />
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes outside MainLayout - only Onboarding now */}
+              <Route path="/onboarding" element={<OnboardingPage />} />
 
-            {/* Routes within MainLayout */}
-            <Route element={<MainLayout />}>
-              {/* Public routes within MainLayout */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/" element={<Index />} />
-              <Route path="/explore" element={<ExplorePage />} />
+              {/* Routes within MainLayout */}
+              <Route element={<MainLayout />}>
+                {/* Public routes within MainLayout */}
+                <Route path="/" element={<Index />} />
+                <Route path="/explore" element={<ExplorePage />} />
 
-              {/* Protected Routes within MainLayout */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/project/:id" element={<ProjectDetailPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+                {/* Protected Routes within MainLayout */}
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/project/:id" element={<ProjectDetailPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* Catch-all Not Found Route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+              {/* Catch-all Not Found Route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };

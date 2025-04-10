@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/accordion";
 import { LoadingPage, LoadingCard } from "@/components/ui/loading";
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 
 const BATHROOM_SUGGESTIONS = [
   {
@@ -73,23 +72,13 @@ const ExplorePage = () => {
 
   return (
     <PageContainer>
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="space-y-6"
-      >
+      <div className="space-y-6">
         <div className="py-4">
           <h1 className="text-xl font-semibold">Explore Projects</h1>
         </div>
 
         {/* Featured Project */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
-        >
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-budget-dark">Budget-Friendly Bathroom Refresh</h2>
             <span className="bg-[#E6F4EA] text-green-800 text-sm font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
@@ -118,20 +107,9 @@ const ExplorePage = () => {
                 View suggested DIY improvements
               </AccordionTrigger>
               <AccordionContent>
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-6 pt-4"
-                >
+                <div className="space-y-6 pt-4">
                   {BATHROOM_SUGGESTIONS.map((suggestion) => (
-                    <motion.div 
-                      key={suggestion.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex items-start gap-4"
-                    >
+                    <div key={suggestion.id} className="flex items-start gap-4">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="font-medium text-budget-dark">{suggestion.title}</h3>
@@ -141,7 +119,7 @@ const ExplorePage = () => {
                         </div>
                         <p className="text-sm text-budget-dark/70">{suggestion.description}</p>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                   
                   <div className="flex justify-between items-center pt-4 border-t">
@@ -150,7 +128,7 @@ const ExplorePage = () => {
                       $780 AUD
                     </span>
                   </div>
-                </motion.div>
+                </div>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -175,22 +153,14 @@ const ExplorePage = () => {
               <span className="mr-2">📝</span> Save to Notebook
             </Button>
           </div>
-        </motion.div>
+        </div>
 
         {/* More Projects Section */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8"
-        >
+        <div className="mt-8">
           <h2 className="text-lg font-semibold mb-4">More Projects</h2>
           <div className="grid gap-4">
             <Link to="/project/kitchen-makeover" className="block">
-              <motion.div 
-                whileHover={{ scale: 1.02 }}
-                className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
-              >
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium">Kitchen Cabinet Makeover</h3>
                   <span className="bg-[#E6F4EA] text-green-800 text-xs font-medium px-2 py-1 rounded-full">
@@ -201,11 +171,11 @@ const ExplorePage = () => {
                 <div className="mt-4">
                   <span className="text-sm font-medium text-budget-accent">View Project →</span>
                 </div>
-              </motion.div>
+              </div>
             </Link>
           </div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </PageContainer>
   );
 };

@@ -41,6 +41,16 @@ interface Project {
   afterImageUrl: string;
 }
 
+const BATHROOM_SUGGESTIONS = [
+  {
+    id: "s1",
+    title: "Paint Wall (Soft Neutral)",
+    estimatedCost: 150,
+    description: "Painted the upper wall a neutral, modern tone (light beige or off-white) to freshen the look and make the space feel larger."
+  },
+  // ... other suggestions ...
+];
+
 const ProjectDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const [projectData, setProjectData] = useState<DocumentData | null>(null);
@@ -78,11 +88,16 @@ const ProjectDetailPage = () => {
   const handleSaveToNotebook = () => {
     localStorage.setItem('savedDesign', JSON.stringify({
       id: "bathroom-refresh",
-      name: "Budget-Friendly Refresh",
+      name: projectData?.projectName || "My Project",
       totalCost: 780,
       valueAdd: 18000,
       suggestions: BATHROOM_SUGGESTIONS,
     }));
+    alert("Saved to Notebook (LocalStorage)");
+  };
+
+  const handleDownload = () => {
+    alert("Download functionality not implemented yet.");
   };
 
   if (loading) {
@@ -119,7 +134,7 @@ const ProjectDetailPage = () => {
     <PageContainer className="transition-opacity duration-500 ease-in-out opacity-100">
       <div className="flex items-center mb-8">
         <Link to="/">
-          <Button className="mr-2 tap-target" aria-label="Back to Home">
+          <Button variant="ghost" size="icon" className="mr-2 tap-target" aria-label="Back to Home">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
@@ -140,34 +155,34 @@ const ProjectDetailPage = () => {
 
           <EnhancedBeforeAfter
             beforeImage={beforeImage}
-            afterImage={"/after.png"}
-            className="mb-6"
+            afterImage={afterImage}
+            className="mb-6 rounded-lg overflow-hidden shadow-md border dark:border-gray-700"
           />
           
-          <Accordion type="single" collapsible className="mb-6">
+          <Accordion type="single" collapsible defaultValue="suggestions" className="mb-6 w-full bg-card p-4 sm:p-6 rounded-lg border dark:border-gray-700 shadow-sm">
             <AccordionItem value="suggestions">
-              <AccordionTrigger className="text-budget-accent">
-                View suggested DIY improvements
+              <AccordionTrigger className="text-budget-accent hover:no-underline">
+                View suggested DIY improvements (Mock)
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-6 pt-4">
                   {BATHROOM_SUGGESTIONS.map((suggestion) => (
-                    <div key={suggestion.id} className="flex items-start gap-4">
+                    <div key={suggestion.id} className="flex items-start gap-4 border-b dark:border-gray-700 pb-4 last:border-b-0 last:pb-0">
                       <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-medium text-budget-dark">{suggestion.title}</h3>
-                          <span className="text-sm font-medium text-budget-accent">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                          <h3 className="font-medium text-card-foreground mb-1 sm:mb-0">{suggestion.title}</h3>
+                          <span className="text-sm font-semibold text-budget-accent">
                             ${suggestion.estimatedCost}
                           </span>
                         </div>
-                        <p className="text-sm text-budget-dark/70">{suggestion.description}</p>
+                        <p className="text-sm text-muted-foreground">{suggestion.description}</p>
                       </div>
                     </div>
                   ))}
                   
-                  <div className="flex justify-between items-center pt-4 border-t">
-                    <span className="font-medium">Total Cost</span>
-                    <span className="text-budget-accent font-medium">
+                  <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700 mt-4">
+                    <span className="text-lg font-semibold">Estimated Total Cost</span>
+                    <span className="text-budget-accent text-xl font-bold">
                       $780 AUD
                     </span>
                   </div>
@@ -176,117 +191,25 @@ const ProjectDetailPage = () => {
             </AccordionItem>
           </Accordion>
           
-          <div className="flex flex-col gap-3">
-            <Button className="w-full gap-2">
+          <div className="flex flex-col sm:flex-row justify-end gap-3">
+            <Button className="gap-2" disabled title="Functionality coming soon">
               <Download className="h-4 w-4" />
-              Save to My Projects
+              Save to My Projects 
             </Button>
             <Button 
-              className="w-full bg-[#f9f9f9] hover:bg-[#f0f0f0] text-budget-dark border border-gray-200 flex items-center justify-start px-4"
+              variant="outline"
+              className="gap-2"
               onClick={handleSaveToNotebook}
             >
-              <span className="mr-2">📝</span> Save to Notebook
+              <span className="mr-1">📝</span> Save to Notebook
             </Button>
-          </div>
-        </div>
-        
-        <div className="max-w-4xl mx-auto space-y-8">
-          <motion.div
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ delay: 0.1, duration: 0.4 }}
-          >
-            <EnhancedBeforeAfter
-              beforeImage={beforeImageUrl}
-              afterImage={afterImageUrl}
-              className="rounded-lg overflow-hidden shadow-lg border dark:border-gray-700"
-            />
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.4 }}
-            className="bg-card p-4 sm:p-6 rounded-lg border dark:border-gray-700 shadow-sm"
-          >
-            <h3 className="text-lg font-semibold mb-4 border-b pb-2 dark:border-gray-600">Your Specifications</h3>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-muted-foreground">
-              <p><strong className="text-card-foreground font-medium">Room Type:</strong> {project.roomType || 'N/A'}</p>
-              <p><strong className="text-card-foreground font-medium">Desired Style:</strong> {project.style || 'N/A'}</p>
-              <p><strong className="text-card-foreground font-medium">Budget:</strong> ${project.budget != null ? project.budget.toFixed(0) : 'N/A'}</p>
-              <p><strong className="text-card-foreground font-medium">Renovation Type:</strong> {project.renovationType || 'N/A'}</p>
-              {project.instructions && (
-                <p className="col-span-2"><strong className="text-card-foreground font-medium">Instructions:</strong> {project.instructions}</p>
-              )}
-            </div>
-          </motion.div>
-
-          <motion.div
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ delay: 0.2, duration: 0.4 }}
-          >
-            <Accordion type="single" collapsible defaultValue="suggestions" className="w-full bg-card p-4 sm:p-6 rounded-lg border dark:border-gray-700 shadow-sm">
-              <AccordionItem value="suggestions">
-                <AccordionTrigger className="text-lg font-medium hover:no-underline">
-                  Suggested DIY Improvements (Mock)
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-6 pt-6">
-                    {project.diySuggestions.length > 0 ? (
-                      project.diySuggestions.map((suggestion, index) => (
-                        <motion.div 
-                          key={suggestion.id || index}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05, duration: 0.3 }}
-                          className="flex items-start gap-4 border-b dark:border-gray-700 pb-4 last:border-b-0 last:pb-0"
-                        >
-                          <div className="flex-1">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
-                              <h3 className="font-medium text-card-foreground mb-1 sm:mb-0">{suggestion.title}</h3>
-                              <span className="text-sm font-semibold text-budget-accent">
-                                ${suggestion.cost.toFixed(0)}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{suggestion.description}</p>
-                          </div>
-                        </motion.div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground italic">No specific DIY suggestions available for this project yet.</p>
-                    )}
-                    
-                    {project.diySuggestions.length > 0 && (
-                      <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700 mt-4">
-                        <span className="text-lg font-semibold">Estimated Total Cost</span>
-                        <span className="text-budget-accent text-xl font-bold">
-                          ${project.totalCost.toFixed(0)} AUD
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </motion.div>
-            
-          <motion.div 
-            className="flex justify-end gap-3 mt-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.4 }}
-          >
-            <Button variant="outline" disabled title="Edit functionality coming soon">
-              Edit Project
-            </Button>
-            <Button onClick={handleDownload} className="gap-2">
+            <Button onClick={handleDownload} className="gap-2" disabled title="Functionality coming soon">
               <Download className="h-4 w-4" />
               Download Results
             </Button>
-          </motion.div>
+          </div>
         </div>
-      </motion.div>
+      </div>
     </PageContainer>
   );
 };

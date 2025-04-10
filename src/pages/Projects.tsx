@@ -4,104 +4,78 @@ import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { LoadingPage, Loading } from "@/components/ui/loading";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth } from "@/context/AuthContext";
 import { ProjectCard } from "@/components/projects/ProjectCard";
+import { db } from "@/firebase-config";
+import { collection, query, where, getDocs, DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 
-// Define Project interface matching ProjectCard
+// Remove the local Project interface for now
+/*
 interface Project {
   id: string;
-  title: string;
-  userId: string;
-  roomType: string;
-  budget: number;
-  style: string;
-  renovationType: string;
-  instructions?: string;
-  beforeImageKey: string;
-  afterImageKey?: string;
-  diySuggestions: Array<{ id: string; title: string; description: string; cost: number }>;
-  createdAt: string;
-  updatedAt: string;
-  status: 'PENDING' | 'COMPLETE' | 'FAILED';
-  totalCost: number;
+  projectName?: string; 
+  uploadedImageURL?: string; 
+  roomType?: string; 
+  style?: string;
+  budget?: string | number; 
+  renovationType?: string;
+  createdAt?: any; 
+  userId?: string; 
 }
+*/
 
 const Projects = () => {
-  const { isLoaded, isSignedIn, getToken } = useAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { currentUser } = useAuth();
+  // Store the raw Firestore documents
+  const [projectDocs, setProjectDocs] = useState<QueryDocumentSnapshot<DocumentData>[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Only fetch if signed in and loaded
-    if (isSignedIn && isLoaded) {
+    if (currentUser) {
       const fetchProjects = async () => {
         setIsLoading(true);
         setError(null);
         try {
-          const token = await getToken({ template: "RenoMateBackendAPI" });
-          if (!token) {
-            throw new Error("Authentication token not available.");
-          }
-
-          const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/projects`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: 'Failed to fetch projects' }));
-            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-          }
-
-          const data: Project[] = await response.json();
-          setProjects(data);
+          const projectsRef = collection(db, "projects");
+          const q = query(projectsRef, where("userId", "==", currentUser.uid));
+          const querySnapshot = await getDocs(q);
+          // Set the raw documents
+          setProjectDocs(querySnapshot.docs);
         } catch (err: any) {
           console.error("Error fetching projects:", err);
           setError(err.message || "An unexpected error occurred.");
-          setProjects([]); // Clear projects on error
+          setProjectDocs([]); // Clear docs on error
         } finally {
           setIsLoading(false);
         }
       };
-
       fetchProjects();
-    } else if (isLoaded) {
-      // If loaded but not signed in, stop loading
+    } else {
       setIsLoading(false);
-      setProjects([]); // Ensure projects are empty if not signed in
+      setProjectDocs([]); // Clear docs if not logged in
     }
-    // Dependency array includes isLoaded and isSignedIn to refetch if auth state changes
-  }, [isLoaded, isSignedIn, getToken]);
+  }, [currentUser]);
 
-  // Loading state while Clerk initializes
-  if (!isLoaded) {
+  // Loading state while Firebase auth initializes or projects are fetching
+  if (isLoading) {
     return <LoadingPage />;
   }
 
-  // Signed out view
-  if (!isSignedIn) {
+  // Signed out view (Redirect or show message if currentUser is null)
+  // This check is redundant if protected routes are set up correctly,
+  // but can be kept as a fallback.
+  if (!currentUser) {
     return (
       <PageContainer>
         <div className="max-w-md mx-auto text-center py-12">
           <h1 className="text-2xl font-semibold mb-4">Your Projects</h1>
           <p className="text-muted-foreground mb-6">
-            Sign in to view and manage your renovation projects.
+            Please log in to view your projects.
           </p>
-          <div className="space-y-4">
-            <Link to="/sign-in">
-              <Button className="w-full">
-                Sign In to View Projects
-              </Button>
-            </Link>
-            <Link to="/explore">
-              <Button variant="outline" className="w-full">
-                Browse Example Projects
-              </Button>
-            </Link>
-          </div>
+          {/* Optional: Add Login Button */}
+          {/* <Button onClick={() => navigate('/login')}>Login</Button> */}
         </div>
       </PageContainer>
     );
@@ -113,7 +87,8 @@ const Projects = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold">My Projects</h1>
-          <Link to="/new-project">
+          {/* Link to onboarding instead of /new-project */}
+          <Link to="/onboarding">
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
               New Project
@@ -121,27 +96,23 @@ const Projects = () => {
           </Link>
         </div>
 
-        {/* Loading state for API call */}
-        {isLoading && (
-          <div className="flex justify-center py-12">
-            <Loading />
-          </div>
-        )}
+        {/* Loading state (handled above, but keep for consistency if preferred) */}
+        {/* {isLoading && (...)} */}
 
         {/* Error state */}
-        {error && !isLoading && (
+        {error && (
           <div className="text-center py-12 text-destructive">
             <p>Error loading projects: {error}</p>
           </div>
         )}
 
         {/* Empty state */}
-        {!isLoading && !error && projects.length === 0 && (
+        {!error && projectDocs.length === 0 && (
           <div className="text-center py-12 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
             <p className="text-muted-foreground mb-4">You haven't created any projects yet.</p>
-            <Button 
+            <Button
               className="gap-2"
-              onClick={() => navigate('/new-project')}
+              onClick={() => navigate('/onboarding')} // Navigate to onboarding
             >
               <Plus className="h-4 w-4" />
               Create Your First Project
@@ -150,11 +121,20 @@ const Projects = () => {
         )}
 
         {/* Projects grid */}
-        {!isLoading && !error && projects.length > 0 && (
+        {!error && projectDocs.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
+            {projectDocs.map((doc) => {
+              // Extract data and pass to ProjectCard, casting as needed
+              // This assumes ProjectCard expects an object with project data
+              const projectData = { id: doc.id, ...doc.data() }; 
+              return (
+                <ProjectCard 
+                  key={projectData.id} 
+                  project={projectData as any} // Cast to any for now to bypass strict type check
+                                               // TODO: Define a proper type or adjust ProjectCard props
+                /> 
+              );
+            })}
           </div>
         )}
       </div>

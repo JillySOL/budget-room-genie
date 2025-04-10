@@ -7,10 +7,8 @@ export const BottomNav = () => {
   const { currentUser } = useAuth();
   
   const isActive = (path: string) => {
-    if (path === "/profile" && currentUser) {
-      return location.pathname === "/profile";
-    } else if (path === "/login" && !currentUser) {
-      return location.pathname === "/login";
+    if (path === "/profile") {
+      return currentUser && location.pathname === "/profile";
     }
     return location.pathname === path;
   };
@@ -31,7 +29,7 @@ export const BottomNav = () => {
         <span className={`text-xs mt-1 ${isActive('/explore') ? 'text-budget-accent font-medium' : 'text-gray-500'}`}>Explore</span>
       </Link>
       
-      {isSignedIn && (
+      {currentUser && (
         <Link to="/projects" className="flex flex-col items-center">
           <Percent className={`h-6 w-6 ${isActive('/projects') ? 'text-budget-accent' : 'text-gray-500'}`} />
           <span className={`text-xs mt-1 ${isActive('/projects') ? 'text-budget-accent font-medium' : 'text-gray-500'}`}>Projects</span>

@@ -17,16 +17,14 @@ const HomeTabs = () => {
   } = useUserProjects();
 
   return (
-    <Tabs defaultValue="projects" className="w-full">
-      <TabsList className={`w-full grid ${isSignedIn ? 'grid-cols-2' : 'grid-cols-1'} p-0.5 rounded-lg`}>
-        <TabsTrigger value="projects" className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium flex items-center justify-center gap-1.5">
-          <HomeIcon className="h-4 w-4" /> My Projects
+    <Tabs defaultValue="rooms" className="w-full">
+      <TabsList className={`w-full grid grid-cols-2 p-0.5 rounded-lg`}>
+        <TabsTrigger value="rooms" className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium flex items-center justify-center gap-1.5">
+          <HomeIcon className="h-4 w-4" /> My Rooms
         </TabsTrigger>
-        {isSignedIn && (
-          <TabsTrigger value="photos" className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium flex items-center justify-center gap-1.5">
-            <Image className="h-4 w-4" /> My Photos
-          </TabsTrigger>
-        )}
+        <TabsTrigger value="photos" className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:font-medium flex items-center justify-center gap-1.5">
+          <Image className="h-4 w-4" /> My Photos
+        </TabsTrigger>
       </TabsList>
       
       <TabsContent value="rooms" className="mt-4">
