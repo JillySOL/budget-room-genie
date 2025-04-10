@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => ({
     },
     extensions: [".js", ".jsx", ".ts", ".tsx"],
   },
+  optimizeDeps: {
+    include: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+  },
   plugins: [
     react(),
     mode === 'development' &&

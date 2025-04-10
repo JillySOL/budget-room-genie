@@ -1,19 +1,18 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, AlertTriangle } from "lucide-react";
-import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter";
+import { ArrowLeft, Download } from "lucide-react";
+import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter.tsx";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useAuth } from "@clerk/clerk-react";
-import { LoadingPage, Loading } from "@/components/ui/loading";
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { toast } from "sonner";
+import { db } from "@/firebase-config";
+import { doc, getDoc, DocumentData } from "firebase/firestore";
+import { Loader2 } from 'lucide-react';
 
 interface DIYSuggestion {
   id: string;
@@ -43,130 +42,152 @@ interface Project {
 }
 
 const ProjectDetailPage = () => {
-  const { projectId } = useParams<{ projectId: string }>();
-  const { isLoaded, isSignedIn, getToken } = useAuth();
-  const navigate = useNavigate();
-
-  const [project, setProject] = useState<Project | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { id } = useParams<{ id: string }>();
+  const [projectData, setProjectData] = useState<DocumentData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!projectId) {
-      setError("No project ID provided.");
-      setIsLoading(false);
-      return;
-    }
-
-    if (!isLoaded) {
-      return;
-    }
-    
-    if (!isSignedIn) {
-       setIsLoading(false);
-       setError("Please sign in to view project details."); 
-       return; 
-    }
-
     const fetchProject = async () => {
-      setIsLoading(true);
-      setError(null);
-      setProject(null);
-
+      if (!id) {
+        setError("Project ID not found.");
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
       try {
-        const token = await getToken({ template: "RenoMateBackendAPI" });
-        if (!token) {
-          throw new Error("Authentication token not available.");
-        }
+        const docRef = doc(db, "projects", id);
+        const docSnap = await getDoc(docRef);
 
-        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/project/${projectId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.status === 404) {
-          throw new Error("Project not found.");
+        if (docSnap.exists()) {
+          setProjectData(docSnap.data());
+        } else {
+          setError("Project not found.");
         }
-        if (response.status === 403) {
-           throw new Error("You do not have permission to view this project.");
-        }
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: 'Failed to fetch project details' }));
-          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        }
-
-        const data: Project = await response.json();
-        setProject(data);
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error fetching project:", err);
-        setError(err.message || "An unexpected error occurred.");
+        setError("Failed to load project details.");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
     fetchProject();
-  }, [projectId, isLoaded, isSignedIn, getToken]); 
+  }, [id]);
 
-  if (isLoading) {
-    return <LoadingPage />;
-  }
+  const handleSaveToNotebook = () => {
+    localStorage.setItem('savedDesign', JSON.stringify({
+      id: "bathroom-refresh",
+      name: "Budget-Friendly Refresh",
+      totalCost: 780,
+      valueAdd: 18000,
+      suggestions: BATHROOM_SUGGESTIONS,
+    }));
+  };
 
-  if (error || !project) {
+  if (loading) {
     return (
-      <PageContainer>
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center py-12 flex flex-col items-center gap-4"
-        >
-          <AlertTriangle className="w-12 h-12 text-destructive" />
-          <h1 className="text-xl font-semibold text-destructive">
-            {error || "Project Not Found"}
-          </h1>
-          <p className="text-muted-foreground">
-            {error === "Project not found." 
-              ? "The project you are looking for does not exist or may have been deleted."
-              : error === "You do not have permission to view this project."
-              ? "Please ensure you are logged in with the correct account."
-              : error === "Please sign in to view project details."
-              ? "Sign in to access your projects."
-              : "An error occurred while loading the project. Please try again later."
-            }
-          </p>
-          <Button onClick={() => navigate('/projects')}>Back to My Projects</Button>
-        </motion.div>
+      <PageContainer className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
       </PageContainer>
     );
   }
 
-  const beforeImageUrl = project.beforeImageUrl || '/placeholder-image.png';
-  const afterImageUrl = project.afterImageUrl || beforeImageUrl;
+  if (error) {
+    return (
+      <PageContainer className="flex justify-center items-center min-h-screen">
+        <p className="text-red-500">{error}</p>
+      </PageContainer>
+    );
+  }
 
-  const handleDownload = () => {
-     toast.info("Download functionality coming soon!");
-  };
+  if (!projectData) {
+    return (
+       <PageContainer className="flex justify-center items-center min-h-screen">
+         <p>Project data could not be loaded.</p>
+       </PageContainer>
+    );
+  }
+
+  const projectName = projectData.projectName || "My Project";
+  const beforeImage = projectData.uploadedImageURL && typeof projectData.uploadedImageURL === 'string' 
+                    ? projectData.uploadedImageURL 
+                    : "/placeholder.svg";
+  const afterImage = "/after.png";
 
   return (
-    <PageContainer>
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="space-y-8"
-      >
-        <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="mr-2" 
-            aria-label="Back to Projects"
-            onClick={() => navigate('/projects')}
-          >
+    <PageContainer className="transition-opacity duration-500 ease-in-out opacity-100">
+      <div className="flex items-center mb-8">
+        <Link to="/">
+          <Button className="mr-2 tap-target" aria-label="Back to Home">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-2xl font-semibold truncate" title={project.title}>{project.title || 'Project Details'}</h1>
+        </Link>
+        <h1 className="text-xl font-semibold">{projectName}</h1>
+      </div>
+      
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-budget-dark">{projectName}</h2>
+            <span className="bg-[#E6F4EA] text-green-800 text-sm font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 19V5M5 12l7-7 7 7"/>
+              </svg>
+              +$18,000 Value
+            </span>
+          </div>
+
+          <EnhancedBeforeAfter
+            beforeImage={beforeImage}
+            afterImage={"/after.png"}
+            className="mb-6"
+          />
+          
+          <Accordion type="single" collapsible className="mb-6">
+            <AccordionItem value="suggestions">
+              <AccordionTrigger className="text-budget-accent">
+                View suggested DIY improvements
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-6 pt-4">
+                  {BATHROOM_SUGGESTIONS.map((suggestion) => (
+                    <div key={suggestion.id} className="flex items-start gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium text-budget-dark">{suggestion.title}</h3>
+                          <span className="text-sm font-medium text-budget-accent">
+                            ${suggestion.estimatedCost}
+                          </span>
+                        </div>
+                        <p className="text-sm text-budget-dark/70">{suggestion.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="flex justify-between items-center pt-4 border-t">
+                    <span className="font-medium">Total Cost</span>
+                    <span className="text-budget-accent font-medium">
+                      $780 AUD
+                    </span>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+          
+          <div className="flex flex-col gap-3">
+            <Button className="w-full gap-2">
+              <Download className="h-4 w-4" />
+              Save to My Projects
+            </Button>
+            <Button 
+              className="w-full bg-[#f9f9f9] hover:bg-[#f0f0f0] text-budget-dark border border-gray-200 flex items-center justify-start px-4"
+              onClick={handleSaveToNotebook}
+            >
+              <span className="mr-2">📝</span> Save to Notebook
+            </Button>
+          </div>
         </div>
         
         <div className="max-w-4xl mx-auto space-y-8">

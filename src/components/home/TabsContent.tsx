@@ -1,78 +1,20 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import React from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { HomeIcon, Image, Plus } from "lucide-react";
-import MyPhotosTab from "./MyPhotosTab";
-import { ProjectCard } from "@/components/projects/ProjectCard";
-import { Loading } from "@/components/ui/loading";
+import { HomeIcon, Image, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
-
-interface Project {
-  id: string;
-  title: string;
-  userId: string;
-  roomType: string;
-  budget: number;
-  style: string;
-  renovationType: string;
-  instructions?: string;
-  beforeImageKey: string;
-  afterImageKey?: string;
-  diySuggestions: Array<{ id: string; title: string; description: string; cost: number }>;
-  createdAt: string;
-  updatedAt: string;
-  status: 'PENDING' | 'COMPLETE' | 'FAILED';
-  totalCost: number;
-}
+import RoomProject from "./RoomProject";
+import { Link } from "react-router-dom";
+import PhotoGallery from "./PhotoGallery";
+import { useUserProjects } from "@/hooks/useUserProjects";
 
 const HomeTabs = () => {
-  const { isLoaded, isSignedIn, getToken } = useAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
-  const [projectError, setProjectError] = useState<string | null>(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (isSignedIn && isLoaded) {
-      const fetchProjects = async () => {
-        setIsLoadingProjects(true);
-        setProjectError(null);
-        try {
-          const token = await getToken({ template: "RenoMateBackendAPI" });
-          if (!token) {
-            throw new Error("Authentication token not available.");
-          }
-
-          const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/projects`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: 'Failed to fetch projects' }));
-            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-          }
-
-          const data: Project[] = await response.json();
-          setProjects(data.slice(0, 3));
-        } catch (err: any) {
-          console.error("Error fetching projects for homepage:", err);
-          setProjectError(err.message || "An unexpected error occurred.");
-          setProjects([]);
-        } finally {
-          setIsLoadingProjects(false);
-        }
-      };
-
-      fetchProjects();
-    } else if (isLoaded) {
-      setIsLoadingProjects(false);
-      setProjects([]);
-      setProjectError(null);
-    }
-  }, [isLoaded, isSignedIn, getToken]);
+  const { 
+    recentProjects, 
+    userPhotos, 
+    loadingRecent, 
+    loadingAll, 
+    error 
+  } = useUserProjects();
 
   return (
     <Tabs defaultValue="projects" className="w-full">
@@ -87,60 +29,55 @@ const HomeTabs = () => {
         )}
       </TabsList>
       
-      <TabsContent value="projects" className="mt-4">
-        {!isSignedIn && isLoaded && (
-          <div className="text-center py-8 px-4 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-             <p className="text-muted-foreground mb-4">Sign in to see your projects.</p>
-             <Button onClick={() => navigate('/sign-in')}>Sign In</Button>
-          </div>
-        )}
-
-        {isLoadingProjects && isSignedIn && (
-           <div className="flex justify-center py-12">
-             <Loading />
-           </div>
-         )}
-
-         {projectError && !isLoadingProjects && isSignedIn && (
-           <div className="text-center py-12 text-destructive">
-             <p>Error loading projects: {projectError}</p>
-           </div>
-         )}
-
-         {!isLoadingProjects && !projectError && isSignedIn && projects.length === 0 && (
-           <div className="text-center py-8 px-4 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-             <p className="text-muted-foreground mb-4">You haven't created any projects yet.</p>
-             <Button
-               className="gap-2"
-               onClick={() => navigate('/new-project')}
-             >
-               <Plus className="h-4 w-4" />
-               Create Your First Project
-             </Button>
-           </div>
-         )}
-
-         {!isLoadingProjects && !projectError && isSignedIn && projects.length > 0 && (
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-             {projects.map((project) => (
-               <ProjectCard key={project.id} project={project} />
-             ))}
-             {projects.length === 3 && (
-                <div className="col-span-full text-center mt-4">
-                    <Button variant="outline" onClick={() => navigate('/projects')}>
-                        View All Projects
-                    </Button>
-                </div>
-             )}
-           </div>
-         )}
+      <TabsContent value="rooms" className="mt-4">
+        <div className="space-y-4 transition-opacity duration-500 ease-in-out" style={{ opacity: loadingRecent ? 0 : 1 }}>
+          {loadingRecent && (
+            <div className="flex justify-center items-center h-20">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {error && (
+            <div className="text-center p-4 bg-red-50 text-red-700 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+          {!loadingRecent && !error && recentProjects.length === 0 && (
+             <div className="text-center py-6 px-4 bg-gray-50 rounded-lg border border-dashed">
+               <p className="text-sm text-gray-600 mb-2">No rooms started yet.</p>
+               <Link to="/onboarding">
+                 <Button variant="outline" size="sm">Start Your First Room</Button>
+               </Link>
+             </div>
+           )}
+          {!loadingRecent && !error && recentProjects.map((doc) => {
+            const project = doc.data();
+            const projectId = doc.id;
+            const imageUrl = project.uploadedImageURL && typeof project.uploadedImageURL === 'string' ? project.uploadedImageURL : "/placeholder.svg"; 
+            
+            return (
+              <RoomProject
+                key={projectId}
+                title={project.projectName || 'Untitled Project'}
+                image={imageUrl}
+                value="Value TBD" 
+                roi="ROI TBD" 
+                progress={10} 
+                link={`/project/${projectId}`}
+              />
+            );
+          })}
+        </div>
       </TabsContent>
       
-      {isSignedIn && (
-        <TabsContent value="photos" className="mt-4">
-          <MyPhotosTab />
-        </TabsContent>
-      )}
+      <TabsContent value="photos" className="mt-4">
+        <div className="transition-opacity duration-500 ease-in-out" style={{ opacity: loadingAll ? 0 : 1 }}>
+          <PhotoGallery 
+            photoUrls={userPhotos}
+            isLoading={loadingAll}
+            error={error}
+          />
+        </div>
+      </TabsContent>
     </Tabs>
   );
 };

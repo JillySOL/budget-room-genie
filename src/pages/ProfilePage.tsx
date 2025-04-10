@@ -1,77 +1,59 @@
-import { useAuth, useUser, SignOutButton, useClerk } from "@clerk/clerk-react";
-import { LogOut, Settings, CreditCard, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import PageContainer from "@/components/layout/PageContainer";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
+import { auth } from "@/firebase-config";
+import { signOut } from "firebase/auth";
+import { toast as sonnerToast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LogOut } from "lucide-react";
 
-export default function ProfilePage() {
-  const { isSignedIn } = useAuth();
-  const { user } = useUser();
-  const { openUserProfile } = useClerk();
+const ProfilePage = () => {
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
 
-  if (!isSignedIn || !user) {
-    return null;
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      sonnerToast.success("Logged out successfully!");
+      navigate("/login"); // Redirect to login after logout
+    } catch (error) {
+      console.error("Logout Error:", error);
+      sonnerToast.error("Failed to log out.");
+    }
+  };
+
+  if (!currentUser) {
+    // This shouldn't happen due to ProtectedRoute, but good practice
+    return (
+      <PageContainer>
+        <p>Loading user information...</p>
+      </PageContainer>
+    );
   }
 
+  // Get first letter for fallback avatar
+  const fallbackName = currentUser.displayName ? currentUser.displayName[0].toUpperCase() : 
+                       currentUser.email ? currentUser.email[0].toUpperCase() : '?';
+
   return (
-    <div className="container max-w-2xl mx-auto px-4 py-8">
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        {/* Header with user info */}
-        <div className="p-6 bg-gradient-to-r from-budget-accent to-budget-accent-dark">
-          <div className="flex items-center gap-4">
-            <img
-              src={user.imageUrl}
-              alt={user.fullName || "Profile picture"}
-              className="w-20 h-20 rounded-full border-4 border-white shadow-md"
-            />
-            <div className="text-white">
-              <h1 className="text-2xl font-bold">{user.fullName || "User"}</h1>
-              <p className="text-budget-accent-light">{user.primaryEmailAddress?.emailAddress}</p>
-            </div>
-          </div>
-        </div>
+    <PageContainer className="flex flex-col items-center pt-10">
+      <Avatar className="w-24 h-24 mb-4">
+        <AvatarImage src={currentUser.photoURL || undefined} alt={currentUser.displayName || "User"} />
+        <AvatarFallback className="text-3xl">{fallbackName}</AvatarFallback>
+      </Avatar>
 
-        {/* Profile sections */}
-        <div className="p-6 space-y-6">
-          {/* Account Settings */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-              <User className="h-5 w-5 text-budget-accent" />
-              Account Settings
-            </h2>
-            <div className="grid gap-4">
-              <button 
-                onClick={() => openUserProfile()}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <Settings className="h-5 w-5 text-gray-500" />
-                  <span className="text-gray-700">Manage Account</span>
-                </div>
-                <span className="text-gray-400">→</span>
-              </button>
-              
-              <button 
-                onClick={() => window.location.href = "/subscription"}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <CreditCard className="h-5 w-5 text-gray-500" />
-                  <span className="text-gray-700">Subscription Settings</span>
-                </div>
-                <span className="text-gray-400">→</span>
-              </button>
-            </div>
-          </div>
+      <h1 className="text-2xl font-semibold mb-1">{currentUser.displayName || "User"}</h1>
+      <p className="text-muted-foreground mb-6">{currentUser.email}</p>
 
-          {/* Sign Out */}
-          <div className="pt-4 border-t border-gray-200">
-            <SignOutButton>
-              <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
-                <LogOut className="h-5 w-5" />
-                Sign Out
-              </button>
-            </SignOutButton>
-          </div>
-        </div>
-      </div>
-    </div>
+      {/* Add other profile details or settings links here if needed */}
+      
+      <Button onClick={handleLogout} variant="destructive" className="w-full max-w-xs mt-4 gap-2">
+        <LogOut className="h-4 w-4" />
+        Logout
+      </Button>
+    </PageContainer>
   );
-} 
+};
+
+export default ProfilePage; 

@@ -1,4 +1,3 @@
-
 import { lazy, Suspense } from "react";
 import Logo from "@/components/ui-custom/Logo";
 import PageContainer from "@/components/layout/PageContainer";
@@ -19,7 +18,7 @@ const Index = () => {
       <div className="space-y-6">
         <div className="py-4 flex justify-between items-center">
           <Logo size="md" />
-          <Link to="/new-project">
+          <Link to="/onboarding">
             <Button variant="ghost" size="sm" className="gap-1">
               <PlusCircle className="h-4 w-4" />
               New

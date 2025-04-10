@@ -1,33 +1,34 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@clerk/clerk-react";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Home, Paintbrush, Hammer, DollarSign, Camera, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, ArrowRight, Home, Paintbrush, Hammer, DollarSign, Camera, Check, Upload, Image as ImageIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Logo from "@/components/ui-custom/Logo";
 import StyleChip from "@/components/ui-custom/StyleChip";
-import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { db, storage } from "@/firebase-config";
+import { collection, addDoc, serverTimestamp, query, where, getDocs, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { toast as sonnerToast } from "sonner";
+import { v4 as uuidv4 } from 'uuid';
+import ExistingPhotoSelector from "@/components/onboarding/ExistingPhotoSelector";
+
+const TOTAL_STEPS = 5;
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { getToken } = useAuth();
+  const { currentUser } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Get the photoKey from location state (passed from photo upload)
-  const photoKey = location.state?.photoKey;
-  
-  useEffect(() => {
-    // If no photoKey is provided, redirect back to new-project
-    if (!photoKey) {
-      toast.error("Please select or upload a photo first");
-      navigate("/new-project");
-    }
-  }, [photoKey, navigate]);
-  
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [selectedExistingImageUrl, setSelectedExistingImageUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [existingProjects, setExistingProjects] = useState<QueryDocumentSnapshot<DocumentData>[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [userData, setUserData] = useState({
     roomType: "",
     budget: "500",
@@ -66,94 +67,128 @@ const OnboardingPage = () => {
     { id: "visual", name: "Just Visualize", description: "See ideas without commitment", icon: <Camera className="h-5 w-5" /> },
   ];
 
-  const handleSubmitProject = async () => {
-    if (!photoKey) {
-      toast.error("Photo is missing. Please try again.");
-      navigate("/new-project");
+  useEffect(() => {
+    const fetchProjects = async () => {
+      if (!currentUser) {
+        setLoadingProjects(false);
+        return;
+      }
+      setLoadingProjects(true);
+      try {
+        const projectsRef = collection(db, "projects");
+        const q = query(projectsRef, where("userId", "==", currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        setExistingProjects(querySnapshot.docs);
+      } catch (err) {         
+        console.error("Error fetching existing projects:", err);
+        sonnerToast.error("Failed to load existing photos.");
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    fetchProjects();
+  }, [currentUser]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    console.log("File selected:", file);
+    if (file) {
+      setSelectedFile(file);
+      setSelectedExistingImageUrl(null);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setSelectedFile(null);
+      setImagePreviewUrl(null);
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleSelectExisting = (imageUrl: string) => {
+    setSelectedExistingImageUrl(imageUrl);
+    setSelectedFile(null);
+    setImagePreviewUrl(imageUrl);
+  };
+
+  const handleSaveProject = async () => {
+    console.log("handleSaveProject called");
+    console.log("Current user:", currentUser);
+    let finalImageURL: string | null = selectedExistingImageUrl;
+    let needsUpload = false;
+
+    if (selectedFile) {
+      finalImageURL = null;
+      needsUpload = true;
+    } else if (!selectedExistingImageUrl) {
+       console.error("Save aborted: No image selected.");
+       sonnerToast.error("Please select or upload an image.");
+       return;
+    }
+
+    if (!currentUser) {
+      console.error("Save aborted: User not logged in.");
+      sonnerToast.error("User not logged in.");
       return;
     }
     
-    setIsSubmitting(true);
-    setError(null);
-    
+    setIsUploading(true);
+
     try {
-      // Convert form data to the format expected by the API
-      const projectDetails = {
-        roomType: getRoomTypeName(userData.roomType),
-        budget: parseInt(userData.budget),
-        style: getStyleName(userData.style),
-        renovationType: getRenovationTypeName(userData.renovationType),
-        instructions: "" // We could add this field later
-      };
-      
-      // Get auth token with the specific template
-      const token = await getToken({ template: "RenoMateBackendAPI" });
-      
-      // Call API to start generation
-      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/start-generation`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          key: photoKey,
-          projectDetails
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        // Include more specific error handling based on backend response if possible
-        throw new Error(data.message || `Failed to start generation (HTTP ${response.status})`);
+      if (needsUpload && selectedFile) {
+        console.log("Proceeding with upload...");
+        sonnerToast.info("Uploading image...");
+        const fileExtension = selectedFile.name.split('.').pop();
+        const uniqueFilename = `${uuidv4()}.${fileExtension}`;
+        const storageRef = ref(storage, `user-uploads/${currentUser.uid}/${uniqueFilename}`);
+        await uploadBytes(storageRef, selectedFile);
+        finalImageURL = await getDownloadURL(storageRef);
+        console.log("Upload successful, URL:", finalImageURL);
+      } else {
+         console.log("Skipping upload, using existing image URL:", finalImageURL);
       }
 
-      // Ensure projectId is returned from the backend
-      if (!data.projectId) {
-        throw new Error("Backend did not return a projectId.");
+      if (!finalImageURL) {
+        throw new Error("Image URL could not be determined.");
       }
-      
-      // Navigate to the simple status page, passing the projectId
-      navigate(`/status`, { 
-        state: { 
-          // Pass only the projectId needed by the status page
-          projectId: data.projectId 
-        } 
-      });
-      
+
+      sonnerToast.info("Saving project details...");
+      const projectData = {
+        ...userData,
+        userId: currentUser.uid,
+        uploadedImageURL: finalImageURL,
+        createdAt: serverTimestamp(),
+        projectName: `${userData.style || 'My'} ${userData.roomType || 'Room'} Project`,
+      };
+      console.log("Saving project data to Firestore:", projectData);
+
+      const docRef = await addDoc(collection(db, "projects"), projectData);
+      console.log("Document written with ID: ", docRef.id);
+      sonnerToast.success("Project created successfully!");
+      navigate(`/project/${docRef.id}`);
+
     } catch (error) {
-      console.error("Error submitting project:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to submit project. Please try again.";
-      setError(errorMessage);
-      toast.error(errorMessage);
+      console.error("Error creating project:", error);
+      sonnerToast.error("Failed to create project. Please try again.");
     } finally {
-      setIsSubmitting(false);
+      console.log("Setting isUploading to false");
+      setIsUploading(false);
     }
-  };
-  
-  // Helper functions to get display names
-  const getRoomTypeName = (id: string) => {
-    const room = roomTypes.find(room => room.id === id);
-    return room ? room.name : id;
-  };
-  
-  const getStyleName = (id: string) => {
-    const style = styleOptions.find(style => style.id === id);
-    return style ? style.label : id;
-  };
-  
-  const getRenovationTypeName = (id: string) => {
-    const type = renovationTypes.find(type => type.id === id);
-    return type ? type.name : id;
   };
 
   const handleNextStep = () => {
-    if (currentStep < 4) {
+    console.log(`handleNextStep called, currentStep: ${currentStep}, TOTAL_STEPS: ${TOTAL_STEPS}`);
+    if (currentStep < TOTAL_STEPS) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Submit the project to API
-      handleSubmitProject();
+      console.log("Final step reached, calling handleSaveProject...");
+      handleSaveProject();
     }
   };
 
@@ -165,6 +200,18 @@ const OnboardingPage = () => {
     }
   };
 
+  const isNextDisabled = () => {
+    if (isUploading) return true;
+    switch (currentStep) {
+      case 1: return !selectedFile && !selectedExistingImageUrl;
+      case 2: return !userData.roomType;
+      case 3: return !userData.budget;
+      case 4: return !userData.style;
+      case 5: return !userData.renovationType;
+      default: return false;
+    }
+  };
+
   return (
     <PageContainer className="flex flex-col min-h-screen">
       <div className="flex items-center justify-between mb-6">
@@ -172,25 +219,68 @@ const OnboardingPage = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <Logo size="sm" />
-        <div className="w-8"></div> {/* Empty div for alignment */}
+        <div className="w-8"></div>
       </div>
 
-      <div className="flex justify-between mb-6">
-        {[1, 2, 3, 4].map((step) => (
-          <div 
-            key={step}
-            className={`h-1 flex-1 mx-0.5 rounded-full ${
-              step <= currentStep ? "bg-budget-accent" : "bg-muted"
-            }`}
-          />
-        ))}
-      </div>
+      <Progress value={(currentStep / TOTAL_STEPS) * 100} className="w-full mb-6 h-1" />
 
       <div className="flex-1 pb-6">
         {currentStep === 1 && (
           <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl font-semibold">G'day! What room are you looking to flip?</h2>
-            <p className="text-sm text-muted-foreground">Select the room you want to transform</p>
+            <h2 className="text-xl font-semibold">Choose a 'before' photo</h2>
+            <p className="text-sm text-muted-foreground">Upload a new photo or select one from your gallery.</p>
+
+            <Input
+              id="file-upload"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+              ref={fileInputRef}
+            />
+
+            {imagePreviewUrl && (
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-2 text-center">Selected Photo:</p>
+                <div className="relative w-full max-w-sm mx-auto h-48 bg-muted rounded-lg overflow-hidden border">
+                  <img src={imagePreviewUrl} alt="Selected preview" className="w-full h-full object-contain" />
+                </div>
+                {selectedFile && !isUploading && (
+                  <p className="text-xs text-center text-muted-foreground mt-1">New Upload: {selectedFile.name}</p>
+                )}
+                {selectedExistingImageUrl && !isUploading && (
+                  <p className="text-xs text-center text-muted-foreground mt-1">Selected from Gallery</p>
+                )}
+              </div>
+            )}
+            
+            <Button
+              variant={imagePreviewUrl ? "secondary" : "default"}
+              className="w-full gap-2 py-3 text-base"
+              onClick={triggerFileInput}
+              disabled={isUploading}
+            >
+              <Upload className="h-5 w-5" />
+              <span>{selectedFile ? "Change Uploaded Photo" : "Upload New Photo"}</span>
+            </Button>
+
+            <ExistingPhotoSelector 
+              projects={existingProjects}
+              isLoading={loadingProjects}
+              selectedUrl={selectedExistingImageUrl}
+              onSelect={handleSelectExisting}
+            />
+
+            {isUploading && (
+               <p className="text-xs text-center text-muted-foreground">Uploading...</p>
+            )}
+          </div>
+        )}
+
+        {currentStep === 2 && (
+          <div className="space-y-6 animate-fade-in">
+            <h2 className="text-xl font-semibold">What room are you flipping?</h2>
+            <p className="text-sm text-muted-foreground">Select the room type</p>
             
             <div className="grid grid-cols-2 gap-3">
               {roomTypes.map((room) => (
@@ -231,10 +321,10 @@ const OnboardingPage = () => {
           </div>
         )}
 
-        {currentStep === 2 && (
+        {currentStep === 3 && (
           <div className="space-y-6 animate-fade-in">
             <h2 className="text-xl font-semibold">What's your budget?</h2>
-            <p className="text-sm text-muted-foreground">We'll customize DIY suggestions to fit</p>
+            <p className="text-sm text-muted-foreground">We'll customize suggestions to fit</p>
             
             <div className="space-y-3">
               {budgetOptions.map((option) => (
@@ -269,10 +359,10 @@ const OnboardingPage = () => {
           </div>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 4 && (
           <div className="space-y-6 animate-fade-in">
             <h2 className="text-xl font-semibold">What style do you prefer?</h2>
-            <p className="text-sm text-muted-foreground">Pick a design direction for your space</p>
+            <p className="text-sm text-muted-foreground">Pick a design direction</p>
             
             <div className="flex flex-wrap gap-2">
               {styleOptions.map((style) => (
@@ -297,10 +387,10 @@ const OnboardingPage = () => {
           </div>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 5 && (
           <div className="space-y-6 animate-fade-in">
             <h2 className="text-xl font-semibold">What type of renovation?</h2>
-            <p className="text-sm text-muted-foreground">Choose the approach that works for you</p>
+            <p className="text-sm text-muted-foreground">Choose the approach</p>
             
             <div className="space-y-3">
               {renovationTypes.map((type) => (
@@ -353,6 +443,17 @@ const OnboardingPage = () => {
             </Button>
           </div>
         )}
+      </div>
+
+      <div className="mt-8 mb-6">
+        <Button
+          className="w-full flex items-center justify-center gap-2"
+          onClick={handleNextStep}
+          disabled={isNextDisabled()}
+        >
+          {isUploading ? "Creating Project..." : (currentStep < TOTAL_STEPS ? "Continue" : "Generate Designs")}
+          {!isUploading && <ArrowRight className="h-4 w-4" />}
+        </Button>
       </div>
     </PageContainer>
   );
