@@ -9,17 +9,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut } from "lucide-react";
 
 const ProfilePage = () => {
-  const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      sonnerToast.success("Logged out successfully!");
-      navigate("/login"); // Redirect to login after logout
+      navigate("/");
+      sonnerToast.success("Logged out successfully");
     } catch (error) {
-      console.error("Logout Error:", error);
-      sonnerToast.error("Failed to log out.");
+      console.error("Logout failed:", error);
+      sonnerToast.error("Logout failed. Please try again.");
     }
   };
 

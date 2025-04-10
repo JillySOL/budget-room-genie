@@ -120,22 +120,24 @@ const OnboardingPage = () => {
 
   const handleSaveProject = async () => {
     console.log("handleSaveProject called");
-    console.log("Current user:", currentUser);
-    let finalImageURL: string | null = selectedExistingImageUrl;
-    let needsUpload = false;
 
+    let finalImageSource: string | File | null = null;
     if (selectedFile) {
-      finalImageURL = null;
-      needsUpload = true;
-    } else if (!selectedExistingImageUrl) {
-       console.error("Save aborted: No image selected.");
-       sonnerToast.error("Please select or upload an image.");
-       return;
+      finalImageSource = selectedFile;
+    } else if (selectedExistingImageUrl) {
+      finalImageSource = selectedExistingImageUrl;
+    } else {
+      console.error("Save aborted: No image selected.");
+      sonnerToast.error("Please select or upload an image.");
+      setSubmissionError("An image is required to create the project.");
+      return;
     }
 
     if (!currentUser) {
-      console.error("Save aborted: User not logged in.");
-      sonnerToast.error("User not logged in.");
+      console.error("Save aborted: User is not logged in, but should be.");
+      sonnerToast.error("You must be logged in to create a project. Redirecting to login.");
+      setSubmissionError("Authentication error. Please log in again.");
+      navigate("/login");
       return;
     }
     
@@ -143,21 +145,23 @@ const OnboardingPage = () => {
     setSubmissionError(null);
 
     try {
-      if (needsUpload && selectedFile) {
+      let finalImageURL: string | null = null;
+      if (finalImageSource instanceof File) {
         console.log("Proceeding with upload...");
         sonnerToast.info("Uploading image...");
-        const fileExtension = selectedFile.name.split('.').pop();
+        const fileExtension = finalImageSource.name.split('.').pop();
         const uniqueFilename = `${uuidv4()}.${fileExtension}`;
         const storageRef = ref(storage, `user-uploads/${currentUser.uid}/${uniqueFilename}`);
-        await uploadBytes(storageRef, selectedFile);
+        await uploadBytes(storageRef, finalImageSource);
         finalImageURL = await getDownloadURL(storageRef);
         console.log("Upload successful, URL:", finalImageURL);
       } else {
-         console.log("Skipping upload, using existing image URL:", finalImageURL);
+         finalImageURL = finalImageSource;
+         console.log("Using existing image URL:", finalImageURL);
       }
 
       if (!finalImageURL) {
-        throw new Error("Image URL could not be determined.");
+        throw new Error("Image URL could not be determined after potential upload.");
       }
 
       sonnerToast.info("Saving project details...");
@@ -208,11 +212,11 @@ const OnboardingPage = () => {
   const isNextDisabled = () => {
     if (isUploading) return true;
     switch (currentStep) {
-      case 1: return !selectedFile && !selectedExistingImageUrl;
-      case 2: return !userData.roomType;
-      case 3: return !userData.budget;
-      case 4: return !userData.style;
-      case 5: return !userData.renovationType;
+      case 1: return !userData.roomType;
+      case 2: return !userData.budget;
+      case 3: return !userData.style;
+      case 4: return !userData.renovationType;
+      case 5: return !selectedFile && !selectedExistingImageUrl;
       default: return false;
     }
   };
@@ -314,15 +318,6 @@ const OnboardingPage = () => {
                 </div>
               ))}
             </div>
-            
-            <Button
-              className="w-full flex items-center justify-center gap-2 mt-6 bg-budget-accent hover:bg-budget-accent/90"
-              onClick={handleNextStep}
-              disabled={!userData.roomType}
-            >
-              Continue
-              <ArrowRight className="h-4 w-4" />
-            </Button>
           </div>
         )}
 
@@ -353,14 +348,6 @@ const OnboardingPage = () => {
                 </div>
               ))}
             </div>
-            
-            <Button
-              className="w-full flex items-center justify-center gap-2 mt-6 bg-budget-accent hover:bg-budget-accent/90"
-              onClick={handleNextStep}
-            >
-              Continue
-              <ArrowRight className="h-4 w-4" />
-            </Button>
           </div>
         )}
 
@@ -380,15 +367,6 @@ const OnboardingPage = () => {
                 />
               ))}
             </div>
-            
-            <Button
-              className="w-full flex items-center justify-center gap-2 mt-6 bg-budget-accent hover:bg-budget-accent/90"
-              onClick={handleNextStep}
-              disabled={!userData.style}
-            >
-              Continue
-              <ArrowRight className="h-4 w-4" />
-            </Button>
           </div>
         )}
 
@@ -431,34 +409,8 @@ const OnboardingPage = () => {
                 {submissionError}
               </div>
             )}
-            
-            <Button
-              className="w-full flex items-center justify-center gap-2 mt-6 bg-budget-accent hover:bg-budget-accent/90"
-              onClick={handleNextStep}
-              disabled={!userData.renovationType || isUploading}
-            >
-              {isUploading ? (
-                <>Processing...</>
-              ) : (
-                <>
-                  Save & Finish
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
           </div>
         )}
-      </div>
-
-      <div className="mt-8 mb-6">
-        <Button
-          className="w-full flex items-center justify-center gap-2"
-          onClick={handleNextStep}
-          disabled={isNextDisabled() || isUploading}
-        >
-          {isUploading ? "Creating Project..." : (currentStep < TOTAL_STEPS ? "Continue" : "Generate Designs")}
-          {!isUploading && <ArrowRight className="h-4 w-4" />}
-        </Button>
       </div>
 
       <div className="mt-auto pt-4 border-t bg-background sticky bottom-0 px-4 py-3">

@@ -10,6 +10,9 @@ export const BottomNav = () => {
     if (path === "/profile") {
       return currentUser && location.pathname === "/profile";
     }
+    if (path === "/login") {
+      return !currentUser && location.pathname === "/login";
+    }
     return location.pathname === path;
   };
 
