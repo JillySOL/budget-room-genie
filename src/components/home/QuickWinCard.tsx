@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useMemo } from "react";
 
 interface QuickWinProps {
   title: string;
@@ -10,11 +9,29 @@ interface QuickWinProps {
 }
 
 const QuickWinCard = ({ title, description, image, valueIncrease, cost }: QuickWinProps) => {
+  // Ensure image URL is absolute by adding origin if it's a relative path
+  const imageUrl = useMemo(() => {
+    // If already absolute URL or data URL, return as is
+    if (image.startsWith('http') || image.startsWith('data:')) {
+      return image;
+    }
+    // Otherwise, ensure it has the origin
+    return image;
+  }, [image]);
+
   return (
     <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow min-w-[240px] w-[240px] flex-shrink-0">
       <div className="flex items-center gap-3">
         <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
-          <img src={image} alt={title} className="w-full h-full object-cover" />
+          <img 
+            src={imageUrl} 
+            alt={title} 
+            className="w-full h-full object-cover" 
+            onError={(e) => {
+              // Fallback if image fails to load
+              (e.target as HTMLImageElement).src = '/placeholder.svg';
+            }}
+          />
         </div>
         <div>
           <h3 className="font-medium text-budget-dark">{title}</h3>

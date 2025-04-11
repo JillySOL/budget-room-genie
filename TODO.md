@@ -4,6 +4,14 @@ This file tracks outstanding tasks, bugs, and potential improvements for the Bud
 
 ## Outstanding Tasks / Bugs
 
+- [ ] **Firebase Functions (AI Integration) Debugging:**
+    - Function `generateRenovationSuggestions` was deployed but not triggered when creating new projects.
+    - Investigate why the Cloud Function isn't running - check Firestore triggers, permissions, and logs.
+    - Test manually triggering the function or modify to use HTTP triggers for testing.
+    - Check Firebase console logs for any errors or permission issues.
+- [ ] **Fix UI Image Loading Issues:**
+    - While image loading was improved, some users still report issues with the slider and DIY section images.
+    - Consider implementing lazy loading or progressive image loading for better performance.
 - [ ] **Implement Photo Deletion:** 
     - Decide on deletion strategy (Storage path needed? How to update Firestore? Confirmation needed?).
     - Add delete button functionality to `PhotoGallery.tsx`.
@@ -25,6 +33,15 @@ This file tracks outstanding tasks, bugs, and potential improvements for the Bud
 
 ## Completed / Recently Done
 
+- [x] **Firebase Functions Development:**
+    - [x] Deployed Cloud Functions with support for Vertex AI integration.
+    - [x] Fixed ESLint and TypeScript configuration issues in Functions.
+    - [x] Successfully set up Firebase Functions v2 environment.
+    - [x] Created Gemini Pro Vision API integration for analyzing room photos.
+- [x] **UI Fixes:**
+    - [x] Added error handling and fallbacks for image loading.
+    - [x] Improved Before/After slider component with better error states.
+    - [x] Fixed image paths and added preloading for better performance.
 - [x] **Onboarding & Authentication Flow:**
     - [x] Reordered onboarding steps (Photo Upload last).
     - [x] Removed logic for saving/resuming onboarding progress for unauthenticated users via `localStorage`.
@@ -69,7 +86,9 @@ This file tracks outstanding tasks, bugs, and potential improvements for the Bud
     - [ ] **Onboarding Flow Refinement:** Revisit the login requirement. Consider implementing temporary unauthenticated uploads + Cloud Function for association later (Option 2 from discussion) to improve UX if forcing early login is undesirable long-term.
     - [ ] **Accessibility Audit:**.
 - **AI Integration:**
-    - [ ] Implement actual AI generation.
-    - [ ] Generate AI-based DIY suggestions/costs.
+    - [x] Implement Vertex AI integration with Firebase Functions.
+    - [ ] Debug and fix Cloud Function triggers for automatic AI processing.
+    - [ ] Add real-time status updates during AI processing.
+    - [ ] Implement image generation with Imagen.
 - **Testing:**
     - [ ] Add unit/integration tests. 
