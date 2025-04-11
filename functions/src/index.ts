@@ -13,40 +13,26 @@ import * as admin from "firebase-admin";
 import fetch from "node-fetch";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { GoogleAuth } from "google-auth-library";
+import axios from "axios";
+import { VertexAI, Part, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
+import { FieldValue } from "firebase-admin/firestore";
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 const db = admin.firestore();
 
-// Helper function to get access token for direct API calls
-async function getAccessToken(): Promise<string> {
-  const auth = new GoogleAuth({
-    scopes: ['https://www.googleapis.com/auth/cloud-platform']
-  });
-  const client = await auth.getClient();
-  const token = await client.getAccessToken();
-  return token.token || '';
-}
-
-// --- Helper function to download image and base64 encode ---
+// Helper function to download image and encode as base64
 async function downloadImageAndEncode(url: string): Promise<{ data: string; mimeType: string }> {
     try {
-        logger.info(`Attempting to download image from: ${url}`);
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch image (${response.status}): ${response.statusText}`);
-        }
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.startsWith("image/")) {
-            throw new Error(`Invalid content type: ${contentType}. URL did not point to an image.`);
-        }
-        const imageBuffer = await response.buffer();
-        const base64ImageData = imageBuffer.toString('base64');
-        logger.info(`Successfully downloaded and encoded image. MimeType: ${contentType}, Size: ${Math.round(base64ImageData.length / 1024)} KB`);
-        return { data: base64ImageData, mimeType: contentType };
+        const response = await axios.get(url, {
+            responseType: 'arraybuffer'
+        });
+        const mimeType = response.headers['content-type'] || 'image/png'; // Default to png if type unknown
+        const data = Buffer.from(response.data, 'binary').toString('base64');
+        return { data, mimeType };
     } catch (error) {
-        logger.error(`Error downloading or encoding image from ${url}:`, error);
-        throw new Error(`Failed to process image from URL: ${error instanceof Error ? error.message : String(error)}`);
+        logger.error("Error downloading image:", error);
+        throw new Error("Failed to download image for processing.");
     }
 }
 
@@ -278,106 +264,174 @@ export const generateRenovationSuggestions = onDocumentCreated("projects/{projec
         await snapshot.ref.update({
             aiStatus: "processing",
             aiError: null,
-            aiProcessedAt: admin.firestore.FieldValue.serverTimestamp(),
+            aiProcessedAt: FieldValue.serverTimestamp(),
         });
 
-        // --- Step 3: Call Imagen for Image Generation ---
-        logger.info(`Calling Imagen for project ${projectId}`);
+        logger.info(`Successfully generated analysis for project ${projectId}`);
 
-        // Construct the prompt for Imagen
-        const imagePrompt = `Generate a photorealistic image of a ${roomType}, following this description: ${analysisResult.afterImageDescription}. Style: ${style}.`;
+        // Update Firestore immediately after analysis, before image generation
+        await snapshot.ref.update({
+            aiStatus: "generating_image", // Indicate image generation is starting
+            aiSuggestions: analysisResult.suggestions || [],
+            aiTotalEstimatedCost: analysisResult.totalEstimatedCost || 0,
+            aiEstimatedValueAdded: analysisResult.estimatedValueAdded || 0,
+            aiAfterImageDescription: analysisResult.afterImageDescription || "",
+            aiError: null,
+        });
 
-        // Use direct REST API call to Imagen 3.0
+        // --- Step 3: Call Gemini Pro for Image Generation/Editing ---
+        logger.info(`Calling Gemini Pro for project ${projectId}`);
+
+        // --- Restore Original Gemini Prompt ---
+        const imagePrompt = `
+Interior Design Renovation Agent - Image Editing Task
+
+You are a photo-realistic interior design assistant. Your task is to take the provided image of a ${roomType} and renovate/restyle it based on the following design instructions. You MUST modify the original image provided.
+
+ROOM DETAILS:
+- Room type: ${roomType}
+- Design style: ${style}
+- Budget level: ${budget}
+
+DESIGN INSTRUCTIONS:
+${analysisResult.afterImageDescription}
+
+IMAGE EDITING GUIDELINES:
+- Modify the input image directly to apply the changes.
+- Maintain the original camera angle, perspective, and overall room structure.
+- Only change furniture, colors, flooring, decor, etc. as described in the DESIGN INSTRUCTIONS.
+- Ensure the final image is photorealistic and matches the ${style} style.
+- DO NOT generate a completely new image; edit the existing one.
+
+Create a photorealistic "after" image showing the result of applying the design instructions to the original ${roomType} image.
+`;
+        // const imagePrompt = `Take the provided image and make the main walls bright blue. Modify the original image directly. Maintain the original camera angle, perspective, and structure.`; // Keep commented out
+        // --- END Restore Original Gemini Prompt ---
+
         let generatedImageUrl = null;
         try {
-            const PROJECT_ID = "517067540669"; // Use numeric project ID
-            const LOCATION_ID = "us-central1";
-            const API_ENDPOINT = "us-central1-aiplatform.googleapis.com";
-            const MODEL_ID = "imagen-3.0-generate-002";
-            
-            // Get access token for API authentication
-            const accessToken = await getAccessToken();
-            
-            const requestBody = {
-                endpoint: `projects/${PROJECT_ID}/locations/${LOCATION_ID}/publishers/google/models/${MODEL_ID}`,
-                instances: [
-                    {
-                        prompt: imagePrompt,
-                    }
+            const PROJECT_ID = "renomate-1f15d"; // Firebase Project ID
+            const LOCATION_ID = "us-central1"; // Or your preferred location
+
+            // --- Download and encode the original image ---
+            logger.info(`Downloading original image for project ${projectId} from ${imageUrl}`);
+            const { data: originalImageBase64, mimeType: originalMimeType } = await downloadImageAndEncode(imageUrl);
+            logger.info(`Successfully downloaded and encoded original image (${originalMimeType})`);
+            // --- End Download ---
+
+            // --- Remove Diagnostic Log ---
+            // logger.info(`Preparing Gemini request. Image MIME type: ${originalMimeType}, Base64 preview: ${originalImageBase64.substring(0, 80)}...`);
+            // --- End Remove ---
+
+            // Initialize Vertex AI
+            const vertex_ai = new VertexAI({ project: PROJECT_ID, location: LOCATION_ID });
+            const model = 'gemini-1.5-pro-preview-0514'; // Using a capable multimodal model
+
+            // Instantiate the model
+            const generativeModel = vertex_ai.getGenerativeModel({
+                model: model,
+                // Adjust safety settings as needed for interior design images
+                safetySettings: [
+                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
                 ],
-                parameters: {
-                    aspectRatio: "1:1",
-                    sampleCount: 1,
-                    negativePrompt: "",
-                    enhancePrompt: false,
-                    personGeneration: "",
-                    safetySetting: "",
-                    addWatermark: true,
-                    includeRaiReason: true,
-                    language: "auto",
-                }
+                generationConfig: {
+                    maxOutputTokens: 2048, // Adjust if needed, though for image output this might not be primary
+                    temperature: 0.4, // Lower temperature for more predictable edits
+                    // topP: 1, // topP and topK can also be adjusted
+                    // topK: 32,
+                },
+            });
+
+            // Prepare the parts for the multimodal request
+            const imagePart: Part = {
+                inlineData: {
+                    mimeType: originalMimeType,
+                    data: originalImageBase64,
+                },
             };
-            
-            logger.info(`Sending request to Imagen API for project ${projectId}`);
-            
-            const response = await fetch(
-                `https://${API_ENDPOINT}/v1/projects/${PROJECT_ID}/locations/${LOCATION_ID}/publishers/google/models/${MODEL_ID}:predict`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify(requestBody)
-                }
-            );
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                logger.error(`Imagen API error: ${response.status} ${response.statusText}`, { errorText });
-                throw new Error(`Imagen API error: ${response.status} ${response.statusText}`);
+            const textPart: Part = {
+                text: imagePrompt,
+            };
+
+            const requestPayload = {
+                contents: [{ role: 'user', parts: [imagePart, textPart] }],
+            };
+
+            logger.info(`Sending request to Gemini Pro model (${model}) for project ${projectId}`);
+
+            // Call the Gemini API
+            const streamingResp = await generativeModel.generateContentStream(requestPayload);
+            // Aggregate the response to get the image data
+            const aggregatedResponse = await streamingResp.response;
+
+            // Check for safety blocks or missing content
+            if (!aggregatedResponse.candidates || aggregatedResponse.candidates.length === 0 || !aggregatedResponse.candidates[0].content || !aggregatedResponse.candidates[0].content.parts || aggregatedResponse.candidates[0].content.parts.length === 0) {
+                 // Check finishReason for safety issues
+                 const finishReason = aggregatedResponse.candidates?.[0]?.finishReason;
+                 const safetyRatings = aggregatedResponse.candidates?.[0]?.safetyRatings;
+                 logger.error(`Gemini response missing content or blocked. Finish Reason: ${finishReason}`, { safetyRatings });
+                 let errorMessage = "Gemini response missing expected content.";
+                 if (finishReason === 'SAFETY') {
+                     errorMessage = "Image generation blocked due to safety settings.";
+                 } else if (finishReason === 'RECITATION') {
+                     errorMessage = "Image generation blocked due to potential recitation issues.";
+                 } else if (!aggregatedResponse.candidates || aggregatedResponse.candidates.length === 0) {
+                     errorMessage = "No candidates returned by Gemini API.";
+                 }
+                 throw new Error(errorMessage);
+             }
+
+            // Find the part containing the image data
+            const imageOutputPart = aggregatedResponse.candidates[0].content.parts.find(part => part.inlineData && part.inlineData.data);
+
+            if (!imageOutputPart || !imageOutputPart.inlineData) {
+                logger.error("Gemini response did not contain image data", { response: JSON.stringify(aggregatedResponse) });
+                throw new Error("Gemini response did not contain the expected image data.");
             }
-            
-            const imagenResponse = await response.json();
-            logger.info(`Received Imagen response for ${projectId}`);
-            
-            // Extract the image from the response
-            // Note: The actual field name may vary depending on the API response structure
-            const imageBase64 = imagenResponse.predictions?.[0]?.bytesBase64Encoded;
-            
-            if (!imageBase64) {
-                throw new Error("No image was generated by Imagen API");
-            }
-            
-            // Upload the base64 image to Firebase Storage
-            const imageBuffer = Buffer.from(imageBase64, 'base64');
-            const fileName = `generated-images/${projectId}/${Date.now()}.png`;
+
+            const generatedImageBase64 = imageOutputPart.inlineData.data;
+            const generatedMimeType = imageOutputPart.inlineData.mimeType || 'image/png'; // Assume png if not specified
+
+            logger.info(`Received Gemini Pro response with image data for ${projectId}`);
+
+            // --- Upload the generated base64 image to Firebase Storage ---
+            const imageBuffer = Buffer.from(generatedImageBase64, 'base64');
+            const fileName = `generated-images/${projectId}/${Date.now()}.${generatedMimeType.split('/')[1] || 'png'}`;
             const imageStorageRef = admin.storage().bucket().file(fileName);
-            
+
             await imageStorageRef.save(imageBuffer, {
                 metadata: {
-                    contentType: 'image/png'
+                    contentType: generatedMimeType
                 }
             });
-            
+
             // Get the public URL of the uploaded image
             const [url] = await imageStorageRef.getSignedUrl({
                 action: 'read',
                 expires: '03-01-2500' // Far future expiration
             });
-            
+
             logger.info(`Generated image saved to Firebase Storage for ${projectId}`);
-            
+
             // Store the URL for later use
             generatedImageUrl = url;
-            
-        } catch (imagenError) {
-            logger.error(`Error generating image for project ${projectId}:`, imagenError);
-            // If Imagen fails, use a placeholder image but don't fail the whole function
-            generatedImageUrl = `https://via.placeholder.com/1024x1024.png/008000/FFFFFF?text=AI+Image+Generation+Failed`;
+
+        } catch (geminiError) {
+            logger.error(`Error generating image with Gemini for project ${projectId}:`, geminiError);
+            // Use a placeholder image if Gemini fails
+            const errorMessage = geminiError instanceof Error ? geminiError.message : "Unknown AI image generation error";
+            generatedImageUrl = `https://via.placeholder.com/1024x1024.png/ff0000/FFFFFF?text=AI+Edit+Failed:+${encodeURIComponent(errorMessage.substring(0, 50))}`;
+            // Update Firestore with the specific error message from Gemini
+            await snapshot.ref.update({ aiStatus: "failed", aiError: errorMessage });
+            // Re-throw the error if you want the function execution to reflect the failure, 
+            // otherwise let it proceed to update Firestore with the placeholder URL
+            // throw geminiError; // Optional: uncomment if failure should stop execution here
         }
 
-        // --- Step 4: Update Firestore with Results ---
+        // --- Step 4: Update Firestore with Final Results ---
         if (!snapshot) {
             logger.error("Cannot update Firestore: snapshot is undefined");
             return;
@@ -393,7 +447,7 @@ export const generateRenovationSuggestions = onDocumentCreated("projects/{projec
             aiAfterImageDescription: analysisResult.afterImageDescription || "", 
             aiGeneratedImageURL: generatedImageUrl || null,
             aiError: null,
-            aiProcessedAt: admin.firestore.FieldValue.serverTimestamp(),
+            aiProcessedAt: FieldValue.serverTimestamp(),
         });
 
         logger.info(`Successfully processed project ${projectId}`);
@@ -405,7 +459,7 @@ export const generateRenovationSuggestions = onDocumentCreated("projects/{projec
             await snapshot.ref.update({
                 aiStatus: "failed",
                 aiError: error instanceof Error ? error.message : "An unknown error occurred during AI processing.",
-                aiProcessedAt: admin.firestore.FieldValue.serverTimestamp(),
+                aiProcessedAt: FieldValue.serverTimestamp(),
             }).catch(updateError => {
                 logger.error(`Failed to update project ${projectId} with error status:`, updateError);
             });

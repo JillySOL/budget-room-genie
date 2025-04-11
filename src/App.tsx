@@ -66,6 +66,7 @@ const App = () => {
                   <Route path="/onboarding" element={<OnboardingPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/project/:id" element={<ProjectDetailPage />} />
+                  <Route path="/projects" element={<ProjectsPage />} />
                 </Route>
 
                 {/* Catch-all for 404 */}
