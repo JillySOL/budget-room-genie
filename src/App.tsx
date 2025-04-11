@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Index from "./pages/Index";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -22,14 +22,15 @@ const queryClient = new QueryClient();
 // Protected Route Component
 const ProtectedRoute = () => {
   const { currentUser, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     // Optional: Show a loading spinner while auth state initializes
     return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
-  // Redirect to login page if not logged in
-  return currentUser ? <Outlet /> : <Navigate to="/login" replace />;
+  // Redirect to login, passing the intended location via state
+  return currentUser ? <Outlet /> : <Navigate to="/login" state={{ from: location }} replace />;
 };
 
 // Layout component including BottomNav

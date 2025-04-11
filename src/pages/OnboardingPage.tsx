@@ -212,11 +212,11 @@ const OnboardingPage = () => {
   const isNextDisabled = () => {
     if (isUploading) return true;
     switch (currentStep) {
-      case 1: return !userData.roomType;
-      case 2: return !userData.budget;
-      case 3: return !userData.style;
-      case 4: return !userData.renovationType;
-      case 5: return !selectedFile && !selectedExistingImageUrl;
+      case 1: return !selectedFile && !selectedExistingImageUrl;
+      case 2: return !userData.roomType;
+      case 3: return !userData.budget;
+      case 4: return !userData.style;
+      case 5: return !userData.renovationType;
       default: return false;
     }
   };
@@ -251,7 +251,7 @@ const OnboardingPage = () => {
             {imagePreviewUrl && (
               <div className="mt-4">
                 <p className="text-sm font-medium mb-2 text-center">Selected Photo:</p>
-                <div className="relative w-full max-w-sm mx-auto h-48 bg-muted rounded-lg overflow-hidden border">
+                <div className="relative w-full max-w-sm mx-auto h-48 bg-muted rounded-lg overflow-hidden border dark:border-gray-700">
                   <img src={imagePreviewUrl} alt="Selected preview" className="w-full h-full object-contain" />
                 </div>
                 {selectedFile && !isUploading && (
@@ -273,15 +273,26 @@ const OnboardingPage = () => {
               <span>{selectedFile ? "Change Uploaded Photo" : "Upload New Photo"}</span>
             </Button>
 
-            <ExistingPhotoSelector 
-              projects={existingProjects}
-              isLoading={loadingProjects}
-              selectedUrl={selectedExistingImageUrl}
-              onSelect={handleSelectExisting}
-            />
+            {currentUser && (
+              <ExistingPhotoSelector 
+                projects={existingProjects}
+                isLoading={loadingProjects}
+                selectedUrl={selectedExistingImageUrl}
+                onSelect={handleSelectExisting}
+              />
+            )}
+
+            {submissionError && (
+              <div className="mt-4 text-center p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm border border-red-200 dark:border-red-800/50">
+                {submissionError}
+              </div>
+            )}
 
             {isUploading && (
-               <p className="text-xs text-center text-muted-foreground">Uploading...</p>
+              <div className="flex items-center justify-center text-sm text-muted-foreground gap-2 pt-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Processing project...</span>
+              </div>
             )}
           </div>
         )}
@@ -298,21 +309,21 @@ const OnboardingPage = () => {
                   className={`p-4 rounded-lg border ${
                     userData.roomType === room.id
                       ? "border-budget-accent bg-budget-accent/10"
-                      : "border-gray-200 bg-white"
-                  } flex flex-col items-center gap-2 cursor-pointer transition-all`}
+                      : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950"
+                  } flex flex-col items-center gap-2 cursor-pointer transition-all hover:border-budget-accent/50`}
                   onClick={() => setUserData({ ...userData, roomType: room.id })}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    userData.roomType === room.id ? "bg-budget-accent text-white" : "bg-gray-100"
+                    userData.roomType === room.id ? "bg-budget-accent text-white" : "bg-gray-100 dark:bg-gray-800"
                   } relative`}>
                     {room.icon}
                     {userData.roomType === room.id && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center border border-budget-accent">
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-white dark:bg-gray-950 rounded-full flex items-center justify-center border border-budget-accent">
                         <Check className="h-3 w-3 text-budget-accent" />
                       </div>
                     )}
                   </div>
-                  <span className={`font-medium text-sm ${userData.roomType === room.id ? "text-budget-accent" : ""}`}>
+                  <span className={`font-medium text-sm ${userData.roomType === room.id ? "text-budget-accent" : "text-foreground"}`}>
                     {room.name}
                   </span>
                 </div>
@@ -333,11 +344,11 @@ const OnboardingPage = () => {
                   className={`p-4 rounded-lg border ${
                     userData.budget === option.id
                       ? "border-budget-accent bg-budget-accent/10"
-                      : "border-gray-200 bg-white"
-                  } flex items-center justify-between cursor-pointer transition-all`}
+                      : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950"
+                  } flex items-center justify-between cursor-pointer transition-all hover:border-budget-accent/50`}
                   onClick={() => setUserData({ ...userData, budget: option.id })}
                 >
-                  <span className={`font-medium ${userData.budget === option.id ? "text-budget-accent" : ""}`}>
+                  <span className={`font-medium ${userData.budget === option.id ? "text-budget-accent" : "text-foreground"}`}>
                     {option.label}
                   </span>
                   {userData.budget === option.id && (
@@ -382,43 +393,37 @@ const OnboardingPage = () => {
                   className={`p-4 rounded-lg border ${
                     userData.renovationType === type.id
                       ? "border-budget-accent bg-budget-accent/10"
-                      : "border-gray-200 bg-white"
-                  } flex items-center gap-3 cursor-pointer transition-all`}
+                      : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950"
+                  } flex items-center gap-3 cursor-pointer transition-all hover:border-budget-accent/50`}
                   onClick={() => setUserData({ ...userData, renovationType: type.id })}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    userData.renovationType === type.id ? "bg-budget-accent text-white" : "bg-gray-100"
+                    userData.renovationType === type.id ? "bg-budget-accent text-white" : "bg-gray-100 dark:bg-gray-800"
                   } relative`}>
                     {type.icon}
                     {userData.renovationType === type.id && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center border border-budget-accent">
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-white dark:bg-gray-950 rounded-full flex items-center justify-center border border-budget-accent">
                         <Check className="h-3 w-3 text-budget-accent" />
                       </div>
                     )}
                   </div>
                   <div>
-                    <h3 className={`font-medium ${userData.renovationType === type.id ? "text-budget-accent" : ""}`}>{type.name}</h3>
+                    <h3 className={`font-medium ${userData.renovationType === type.id ? "text-budget-accent" : "text-foreground"}`}>{type.name}</h3>
                     <p className="text-xs text-muted-foreground">{type.description}</p>
                   </div>
                 </div>
               ))}
             </div>
-            
-            {submissionError && (
-              <div className="mt-4 text-center p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-                {submissionError}
-              </div>
-            )}
           </div>
         )}
       </div>
 
-      <div className="mt-auto pt-4 border-t bg-background sticky bottom-0 px-4 py-3">
-        <div className="flex justify-between items-center">
+      <div className="mt-auto pt-4 border-t bg-background dark:border-gray-800 sticky bottom-0 px-4 py-3 -mx-4">
+        <div className="flex justify-between items-center max-w-md mx-auto">
           <Button variant="ghost" onClick={handleBack} disabled={isUploading}> 
             Back
           </Button>
-          <Button onClick={handleNextStep} disabled={isNextDisabled() || isUploading}> 
+          <Button onClick={currentStep === TOTAL_STEPS ? handleSaveProject : handleNextStep} disabled={isNextDisabled() || isUploading}> 
             {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : (currentStep === TOTAL_STEPS ? "Create Project" : "Next")}
           </Button>
         </div>

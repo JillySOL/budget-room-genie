@@ -21,10 +21,15 @@ This file tracks outstanding tasks, bugs, and potential improvements for the Bud
 - [ ] **Homepage "My Rooms" - Dynamic Data:**
     - Replace placeholder `Value TBD`, `ROI TBD`, and progress (10%) in `RoomProject` component with actual data.
 - [ ] **Auth State Handling (Logged Out):**
-    - Review pages/components shown when logged out (e.g., `ProjectsPage`, `HomeTabs`) and ensure they display appropriate content (e.g., login prompts) instead of attempting to load user data or showing empty states meant for logged-in users.
+    - Review pages/components shown when logged out (e.g., `ProjectsPage`, `HomeTabs`) and ensure they display appropriate content (e.g., login prompts) instead of attempting to load user data or showing empty states meant for logged-in users. *(Partially addressed by protecting `/onboarding`)*.
 
 ## Completed / Recently Done
 
+- [x] **Onboarding & Authentication Flow:**
+    - [x] Reordered onboarding steps (Photo Upload last).
+    - [x] Removed logic for saving/resuming onboarding progress for unauthenticated users via `localStorage`.
+    - [x] Protected the `/onboarding` route, requiring users to log in first.
+    - [x] Ensured login page (`/login`) includes the main layout/navigation.
 - [x] **Refactoring:**
     - [x] Extract `getUniquePhotoUrls` to `src/lib/utils.ts`.
     - [x] Create `useUserProjects` hook to fetch project/photo data for `TabsContent.tsx`.
@@ -49,7 +54,7 @@ This file tracks outstanding tasks, bugs, and potential improvements for the Bud
 ## Suggestions & Future Improvements
 
 - **Refactoring:**
-    - [ ] Refactor `OnboardingPage.tsx` further (Step 1 sub-component, `handleSaveProject` simplification).
+    - [ ] Refactor `OnboardingPage.tsx` further (e.g., Step components, `handleSaveProject` simplification).
     - [ ] Consolidate Firebase interaction logic further (e.g., dedicated service functions for CRUD operations).
 - **Performance:**
     - [ ] **Pagination:** Consider for project/photo fetching if lists become long.
@@ -61,7 +66,7 @@ This file tracks outstanding tasks, bugs, and potential improvements for the Bud
 - **User Experience (UX):**
     - [ ] **Photo Deletion Confirmation:** Add dialog.
     - [ ] **Clearer Loading/Error States:** Improve specificity.
-    - [ ] **Onboarding Flow:** Potential refinements.
+    - [ ] **Onboarding Flow Refinement:** Revisit the login requirement. Consider implementing temporary unauthenticated uploads + Cloud Function for association later (Option 2 from discussion) to improve UX if forcing early login is undesirable long-term.
     - [ ] **Accessibility Audit:**.
 - **AI Integration:**
     - [ ] Implement actual AI generation.
