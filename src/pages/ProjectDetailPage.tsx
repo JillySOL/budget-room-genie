@@ -20,12 +20,44 @@ interface DIYSuggestion {
   cost: number;
 }
 
+// Array of loading messages
+const loadingMessages = [
+  "Analyzing your room...",
+  "Generating renovation ideas...",
+  "Applying modern design principles...",
+  "Rendering your new space...",
+  "Polishing the final details...",
+  "Almost there...",
+];
+
 const ProjectDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const [projectData, setProjectData] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [aiProcessing, setAiProcessing] = useState(false);
+  const [currentLoadingMessage, setCurrentLoadingMessage] = useState(loadingMessages[0]);
+
+  // Effect for cycling loading messages
+  useEffect(() => {
+    let messageInterval: NodeJS.Timeout | null = null;
+    
+    if (projectData?.aiStatus === 'processing') {
+      let messageIndex = 0;
+      setCurrentLoadingMessage(loadingMessages[messageIndex]); // Set initial message
+      
+      messageInterval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % loadingMessages.length;
+        setCurrentLoadingMessage(loadingMessages[messageIndex]);
+      }, 2500); // Cycle every 2.5 seconds
+    }
+    
+    // Cleanup function
+    return () => {
+      if (messageInterval) {
+        clearInterval(messageInterval);
+      }
+    };
+  }, [projectData?.aiStatus]); // Re-run when aiStatus changes
 
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
@@ -51,8 +83,6 @@ const ProjectDetailPage = () => {
           
           // Only show processing state if not completed
           if (!aiStatus || aiStatus === "pending" || aiStatus === "processing") {
-            setAiProcessing(true);
-            
             // Always set up polling regardless of initial status
             pollInterval = setInterval(async () => {
               console.log("Polling for updates...");
@@ -68,7 +98,6 @@ const ProjectDetailPage = () => {
                   
                   if (updatedStatus === "completed" || updatedStatus === "failed") {
                     console.log("AI processing finished, stopping polling");
-                    setAiProcessing(false);
                     if (pollInterval) {
                       clearInterval(pollInterval);
                       pollInterval = null;
@@ -81,7 +110,6 @@ const ProjectDetailPage = () => {
             }, 3000); // Poll more frequently (every 3 seconds)
           } else {
             // AI is already completed or failed
-            setAiProcessing(false);
           }
         } else {
           setError("Project not found.");
@@ -133,11 +161,6 @@ const ProjectDetailPage = () => {
       if (docSnap.exists()) {
         const refreshedData = docSnap.data();
         setProjectData(refreshedData);
-        
-        // Update processing state based on new data
-        if (refreshedData.aiStatus === "completed" || refreshedData.aiStatus === "failed") {
-          setAiProcessing(false);
-        }
       }
     } catch (err) {
       console.error("Error refreshing project data:", err);
@@ -181,11 +204,11 @@ const ProjectDetailPage = () => {
   }
 
   // Check if we should show AI processing/loading state
-  // Update this line to handle undefined aiStatus as well
-  const showAiProcessing = !projectData.aiStatus || 
-                          projectData.aiStatus === "pending" || 
-                          projectData.aiStatus === "processing" ||
-                          projectData.aiStatus === "failed";
+  // Simpler check based directly on aiStatus
+  const isAiProcessing = projectData?.aiStatus === "processing";
+  const isAiPending = !projectData?.aiStatus || projectData?.aiStatus === "pending";
+  const isAiFailed = projectData?.aiStatus === "failed";
+  const showAiState = isAiProcessing || isAiPending || isAiFailed;
 
   // Get AI suggestions or use mock data if not available
   const aiSuggestions = projectData.aiSuggestions || [];
@@ -219,17 +242,20 @@ const ProjectDetailPage = () => {
             </span>
           </div>
 
-          {showAiProcessing ? (
-            <div className="relative mb-6 rounded-lg overflow-hidden shadow-md border dark:border-gray-700 bg-gray-100 flex flex-col items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin mb-2" />
-              <p className="text-sm text-center mx-auto max-w-xs">
-                {projectData.aiStatus === "processing" ? 
-                  "AI is generating your renovation design..." : 
-                  projectData.aiStatus === "failed" ?
+          {showAiState ? (
+            <div className="relative mb-6 rounded-lg overflow-hidden shadow-md border dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center h-64 p-4">
+              <Loader2 className="h-8 w-8 animate-spin mb-4 text-budget-accent" />
+              <p className="text-sm text-center mx-auto max-w-xs font-medium text-gray-700 dark:text-gray-300">
+                {isAiProcessing ? 
+                  currentLoadingMessage : 
+                  isAiFailed ?
                   "Unable to generate design. Please try again." :
                   "Waiting for AI to start processing your design..."}
               </p>
-              {projectData.aiStatus === "failed" && projectData.aiError && (
+              {isAiProcessing && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">This may take up to a minute...</p>
+              )}
+              {isAiFailed && projectData.aiError && (
                 <p className="text-xs text-red-500 mt-2 text-center max-w-xs">
                   Error: {projectData.aiError}
                 </p>
@@ -255,17 +281,17 @@ const ProjectDetailPage = () => {
           <Accordion type="single" collapsible defaultValue="suggestions" className="mb-6 w-full bg-card p-4 sm:p-6 rounded-lg border dark:border-gray-700 shadow-sm">
             <AccordionItem value="suggestions">
               <AccordionTrigger className="text-budget-accent hover:no-underline">
-                {showAiProcessing ? "AI is generating recommendations..." : "View suggested DIY improvements"}
+                {showAiState ? "AI is generating recommendations..." : "View suggested DIY improvements"}
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-6 pt-4">
-                  {showAiProcessing ? (
+                  {showAiState ? (
                     <div className="flex items-center justify-center py-4">
                       <Loader2 className="h-6 w-6 animate-spin mr-2" />
                       <p>
-                        {projectData.aiStatus === "processing" ? 
+                        {isAiProcessing ? 
                           "Analyzing your room and generating personalized suggestions..." : 
-                          projectData.aiStatus === "failed" ?
+                          isAiFailed ?
                           "Unable to generate suggestions. Please try again later." :
                           "Waiting to start processing..."}
                       </p>
@@ -312,7 +338,7 @@ const ProjectDetailPage = () => {
               variant="outline"
               className="gap-2 w-full sm:w-auto"
               onClick={handleSaveToNotebook}
-              disabled={showAiProcessing}
+              disabled={showAiState}
             >
               <span className="mr-1">📝</span> Save to Notebook
             </Button>

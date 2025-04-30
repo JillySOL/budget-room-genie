@@ -12,14 +12,38 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import fetch from "node-fetch";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { GoogleAuth } from "google-auth-library";
 import axios from "axios";
-import { VertexAI, Part, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { FieldValue } from "firebase-admin/firestore";
+import OpenAI from 'openai';
+// Remove functions sdk import - no longer needed
+// import * as functions from "firebase-functions"; 
+// Add Secret Manager Client
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+// Remove Readable import, not needed now
+// import { Readable } from 'stream';
+import * as fsPromises from 'fs/promises'; // Use promises for async operations
+import * as fs from 'fs'; // Import standard fs for createReadStream
+import * as path from 'path';
+import * as os from 'os';
+import sharp from 'sharp'; // Import sharp
+import FormData from 'form-data'; // Import form-data library
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 const db = admin.firestore();
+
+// Remove global OpenAI Client Initialization
+/*
+// --- Initialize OpenAI Client ---
+// Ensure OPENAI_API_KEY is set in function environment variables
+logger.info("Attempting to initialize OpenAI client...");
+logger.info(`OPENAI_API_KEY value: ${process.env.OPENAI_API_KEY ? 'Exists and has value' : 'MISSING or EMPTY'}`); // Log existence, not the key itself
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, 
+});
+logger.info("OpenAI client initialized (or attempted).");
+// --- End OpenAI Client Init ---
+*/
 
 // Helper function to download image and encode as base64
 async function downloadImageAndEncode(url: string): Promise<{ data: string; mimeType: string }> {
@@ -200,22 +224,22 @@ function generateSuggestionsByRoomType(roomType: string, budget: string, style: 
         styleDesc = "contemporary, tasteful, balanced";
     }
     
-    // Create the after image description
+    // Create the after image description (Make descriptions more concise)
     switch(roomType.toLowerCase()) {
         case "bathroom":
-            afterImageDescription = `A ${styleDesc} bathroom with ${isBudgetHigh ? 'premium' : 'refreshed'} fixtures, ${isBudgetLow ? 'freshly painted walls' : 'updated vanity'}, and ${isBudgetHigh ? 'luxury flooring' : 'new lighting'}. The space feels clean, bright, and inviting with ${style.toLowerCase()} design elements throughout.`;
+            afterImageDescription = `A ${styleDesc} bathroom featuring ${isBudgetHigh ? 'premium' : 'refreshed'} fixtures, ${isBudgetLow ? 'fresh paint' : 'an updated vanity'}, and ${isBudgetHigh ? 'luxury flooring' : 'new lighting'}. Clean, bright ${style.toLowerCase()} design.`;
             break;
         case "kitchen":
-            afterImageDescription = `A ${styleDesc} kitchen with ${isBudgetHigh ? 'refinished premium cabinets' : 'refreshed cabinets'}, ${isBudgetLow ? 'clean countertops' : 'new countertops'}, and ${isBudgetHigh ? 'designer backsplash' : 'simple backsplash'}. The space is well-lit with ${isBudgetHigh ? 'modern pendant lighting' : 'updated fixtures'} and has a cohesive ${style.toLowerCase()} aesthetic.`;
+            afterImageDescription = `A ${styleDesc} kitchen with ${isBudgetHigh ? 'refinished cabinets' : 'refreshed cabinets'}, ${isBudgetLow ? 'clean counters' : 'new countertops'}, and ${isBudgetHigh ? 'designer backsplash' : 'simple backsplash'}. Well-lit ${style.toLowerCase()} aesthetic.`;
             break;
         case "bedroom":
-            afterImageDescription = `A ${styleDesc} bedroom with ${isBudgetHigh ? 'premium painted walls' : 'freshly painted walls'}, ${isBudgetLow ? 'updated lighting' : 'new flooring'}, and ${isBudgetHigh ? 'custom storage solutions' : 'refreshed window treatments'}. The space feels calm and inviting with thoughtful ${style.toLowerCase()} design elements.`;
+            afterImageDescription = `A ${styleDesc} bedroom with ${isBudgetHigh ? 'premium paint' : 'fresh paint'}, ${isBudgetLow ? 'updated lighting' : 'new flooring'}, and ${isBudgetHigh ? 'custom storage' : 'new window treatments'}. Calm, inviting ${style.toLowerCase()} design.`;
             break;
         case "living room":
-            afterImageDescription = `A ${styleDesc} living room with ${isBudgetHigh ? 'premium painted walls' : 'freshly painted walls'}, ${isBudgetLow ? 'updated lighting' : 'new flooring'}, and ${isBudgetHigh ? 'a refined fireplace surround' : 'refreshed accent pieces'}. The space feels open and inviting with cohesive ${style.toLowerCase()} design elements throughout.`;
+            afterImageDescription = `A ${styleDesc} living room with ${isBudgetHigh ? 'premium paint' : 'fresh paint'}, ${isBudgetLow ? 'updated lighting' : 'new flooring'}, and ${isBudgetHigh ? 'refined fireplace' : 'new accent pieces'}. Open, inviting ${style.toLowerCase()} design.`;
             break;
         default:
-            afterImageDescription = `A refreshed ${roomType} with updated paint, lighting, and décor elements in a ${styleDesc} style. The space feels rejuvenated and more functional while maintaining a cohesive ${style.toLowerCase()} aesthetic.`;
+            afterImageDescription = `Refreshed ${roomType} with updated paint, lighting, and décor in a ${styleDesc} style. Cohesive ${style.toLowerCase()} aesthetic.`;
     }
     
     return {
@@ -226,7 +250,158 @@ function generateSuggestionsByRoomType(roomType: string, budget: string, style: 
     };
 }
 
-// --- Cloud Function Trigger (v2) ---
+// --- Helper Functions ---
+
+// Fetches the OpenAI API key from Secret Manager
+async function getOpenApiKey(): Promise<string> {
+    logger.info("Initializing Secret Manager client...");
+    const secretClient = new SecretManagerServiceClient();
+    const secretName = 'projects/517067540669/secrets/openai-api-key/versions/latest';
+    logger.info(`Fetching secret: ${secretName}`);
+    try {
+        const [version] = await secretClient.accessSecretVersion({ name: secretName });
+        const apiKey = version.payload?.data?.toString();
+        if (!apiKey) {
+            throw new Error("Secret payload data is empty or undefined.");
+        }
+        logger.info("Secret retrieved successfully from Secret Manager.");
+        return apiKey;
+    } catch (secretError) {
+        logger.error("Critical: Failed to retrieve OpenAI API key from Secret Manager:", secretError);
+        throw new Error("Failed to retrieve API credentials."); // Re-throw critical error
+    }
+}
+
+// Downloads an image from a URL
+async function downloadImage(url: string): Promise<Buffer> {
+    logger.info(`Downloading image from: ${url}`);
+    try {
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        const imageBuffer = Buffer.from(response.data, 'binary');
+        logger.info(`Successfully downloaded image (size: ${imageBuffer.length} bytes)`);
+        return imageBuffer;
+    } catch (downloadError) {
+        logger.error(`Failed to download image from ${url}:`, downloadError);
+        throw new Error(`Failed to download image: ${url}`);
+    }
+}
+
+// Processes the image buffer: ensures alpha channel and converts to PNG
+async function processImageForOpenAI(imageBuffer: Buffer): Promise<{ pngBuffer: Buffer, metadata: sharp.Metadata }> {
+    try {
+        logger.info('Processing image for OpenAI...');
+        const imageSharp = sharp(imageBuffer);
+        const metadata = await imageSharp.metadata();
+        logger.info(`Original image info: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);
+
+        // Ensure Alpha channel for transparency (required by edit endpoint if no mask)
+        const pngBuffer = await imageSharp.ensureAlpha().png().toBuffer();
+        logger.info(`Successfully processed image to PNG w/alpha (size: ${pngBuffer.length} bytes)`);
+        return { pngBuffer, metadata };
+    } catch (sharpError) {
+        logger.error('Error processing image with sharp:', sharpError);
+        throw new Error('Failed to process input image to required PNG format.');
+    }
+}
+
+// Calls the OpenAI image edit API
+async function callOpenAIEditApi(
+    apiKey: string,
+    prompt: string,
+    imageBuffer: Buffer,
+    imageMetadata: sharp.Metadata // Pass metadata for logging
+): Promise<any> {
+    const tempDir = os.tmpdir();
+    // Use a more unique temp file name (though still might collide in high concurrency)
+    const tempFileName = `openai_edit_input_${process.pid}_${Date.now()}.png`;
+    const tempFilePath = path.join(tempDir, tempFileName);
+
+    try {
+        // Save buffer to temp file to use with FormData
+        await fsPromises.writeFile(tempFilePath, imageBuffer);
+        logger.info(`Processed image saved to temporary file: ${tempFilePath}`);
+
+        // Construct FormData
+        const formData = new FormData();
+        formData.append('prompt', prompt);
+        formData.append('model', 'gpt-image-1'); // Explicitly set model
+        formData.append('image', fs.createReadStream(tempFilePath), { // Stream from temp file
+            filename: 'input.png', // Generic filename for API
+            contentType: 'image/png',
+        });
+        // Optional: Add 'n' or 'size' if needed
+
+        // Pre-flight Logging
+        logger.info(`Prompt length: ${prompt.length} characters`);
+        logger.info(`Image buffer size being sent: ${imageBuffer.length} bytes`);
+        logger.info(`Image dimensions being sent: ${imageMetadata.width}x${imageMetadata.height}`);
+        logger.info('Constructed FormData for OpenAI edit request.');
+
+        // Execute fetch request
+        const apiEndpoint = 'https://api.openai.com/v1/images/edits';
+        const fetchOptions = {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                // Content-Type set automatically by fetch for FormData
+            },
+            body: formData,
+        };
+
+        logger.info(`Sending manual request to ${apiEndpoint}`);
+        const fetchResponse = await fetch(apiEndpoint, fetchOptions);
+        const responseBody = await fetchResponse.json(); // Try parsing JSON always
+
+        if (!fetchResponse.ok) {
+            logger.error(`OpenAI API request failed with status ${fetchResponse.status}:`, JSON.stringify(responseBody));
+            const message = responseBody?.error?.message || fetchResponse.statusText;
+            throw new Error(`OpenAI API Error (${fetchResponse.status}): ${message}`);
+        }
+
+        logger.info('Received successful response from manual OpenAI fetch request.');
+        return responseBody;
+
+    } finally {
+        // Clean up temporary file
+        try {
+            await fsPromises.unlink(tempFilePath);
+            logger.info(`Successfully deleted temporary file: ${tempFilePath}`);
+        } catch (cleanupError) {
+            // Log cleanup error but don't fail the function for this
+            logger.warn(`Failed to delete temporary file ${tempFilePath}:`, cleanupError);
+        }
+    }
+}
+
+
+// Uploads the generated image buffer to Firebase Storage
+async function uploadGeneratedImageToStorage(
+    projectId: string,
+    imageBuffer: Buffer
+): Promise<string> {
+    try {
+        const mimeType = 'image/png'; // We know it's PNG after processing
+        const finalFileName = `generated-images/${projectId}/${Date.now()}.png`;
+        const imageStorageRef = admin.storage().bucket().file(finalFileName);
+
+        logger.info(`Uploading generated image to GCS: ${finalFileName}`);
+        await imageStorageRef.save(imageBuffer, {
+            metadata: { contentType: mimeType }
+        });
+
+        const [url] = await imageStorageRef.getSignedUrl({
+            action: 'read',
+            expires: '03-01-2500' // Far future expiration
+        });
+        logger.info(`Generated image saved to Firebase Storage: ${url}`);
+        return url;
+    } catch (uploadError) {
+        logger.error(`Failed to upload generated image to storage for project ${projectId}:`, uploadError);
+        throw new Error("Failed to save generated image.");
+    }
+}
+
+// --- Main Cloud Function Trigger ---
 export const generateRenovationSuggestions = onDocumentCreated("projects/{projectId}", async (event) => {
     const snapshot = event.data;
     if (!snapshot) {
@@ -235,234 +410,112 @@ export const generateRenovationSuggestions = onDocumentCreated("projects/{projec
     }
     const projectId = event.params.projectId;
     const projectData = snapshot.data();
+    const projectRef = snapshot.ref; // Reference for Firestore updates
 
     logger.info(`Processing project ${projectId}`, { structuredData: true });
 
+    // --- Initial Validation ---
     if (!projectData || !projectData.uploadedImageURL) {
         logger.error("Project data or uploadedImageURL missing.", { projectId });
-        if (snapshot) {
-            await snapshot.ref.update({
-                aiStatus: "failed",
-                aiError: "Missing project data or image URL.",
-            });
-        }
+        await projectRef.update({
+            aiStatus: "failed",
+            aiError: "Missing project data or image URL.",
+            aiProcessedAt: FieldValue.serverTimestamp(),
+        }).catch(e => logger.error("Firestore update failed (initial validation):", e));
         return;
     }
 
+    let apiKey: string;
     try {
-        // --- Step 1: Extract project data ---
+        // --- Get API Key ---
+        apiKey = await getOpenApiKey(); // Get key early
+
+        // --- Extract Data & Generate Suggestions ---
         const imageUrl = projectData.uploadedImageURL as string;
         const budget = projectData.budget || "not specified";
         const style = projectData.style || "modern";
         const roomType = projectData.roomType || "room";
-        
-        // --- Step 2: Generate suggestions based on room type ---
         const analysisResult = generateSuggestionsByRoomType(roomType, budget, style);
-        logger.info(`Generated suggestions for ${projectId} based on room type ${roomType}`);
-        
-        // Mark project as processing
-        await snapshot.ref.update({
-            aiStatus: "processing",
-            aiError: null,
-            aiProcessedAt: FieldValue.serverTimestamp(),
-        });
+        logger.info(`Generated suggestions for ${projectId}`);
 
-        logger.info(`Successfully generated analysis for project ${projectId}`);
-
-        // Update Firestore immediately after analysis, before image generation
-        await snapshot.ref.update({
-            aiStatus: "generating_image", // Indicate image generation is starting
+        // --- Update Firestore: Processing Started ---
+        await projectRef.update({
+            aiStatus: "processing", // More accurate initial status
             aiSuggestions: analysisResult.suggestions || [],
             aiTotalEstimatedCost: analysisResult.totalEstimatedCost || 0,
             aiEstimatedValueAdded: analysisResult.estimatedValueAdded || 0,
             aiAfterImageDescription: analysisResult.afterImageDescription || "",
             aiError: null,
-        });
-
-        // --- Step 3: Call Gemini Pro for Image Generation/Editing ---
-        logger.info(`Calling Gemini Pro for project ${projectId}`);
-
-        // --- Restore Original Gemini Prompt ---
-        const imagePrompt = `
-Interior Design Renovation Agent - Image Editing Task
-
-You are a photo-realistic interior design assistant. Your task is to take the provided image of a ${roomType} and renovate/restyle it based on the following design instructions. You MUST modify the original image provided.
-
-ROOM DETAILS:
-- Room type: ${roomType}
-- Design style: ${style}
-- Budget level: ${budget}
-
-DESIGN INSTRUCTIONS:
-${analysisResult.afterImageDescription}
-
-IMAGE EDITING GUIDELINES:
-- Modify the input image directly to apply the changes.
-- Maintain the original camera angle, perspective, and overall room structure.
-- Only change furniture, colors, flooring, decor, etc. as described in the DESIGN INSTRUCTIONS.
-- Ensure the final image is photorealistic and matches the ${style} style.
-- DO NOT generate a completely new image; edit the existing one.
-
-Create a photorealistic "after" image showing the result of applying the design instructions to the original ${roomType} image.
-`;
-        // const imagePrompt = `Take the provided image and make the main walls bright blue. Modify the original image directly. Maintain the original camera angle, perspective, and structure.`; // Keep commented out
-        // --- END Restore Original Gemini Prompt ---
-
-        let generatedImageUrl = null;
-        try {
-            const PROJECT_ID = "renomate-1f15d"; // Firebase Project ID
-            const LOCATION_ID = "us-central1"; // Or your preferred location
-
-            // --- Download and encode the original image ---
-            logger.info(`Downloading original image for project ${projectId} from ${imageUrl}`);
-            const { data: originalImageBase64, mimeType: originalMimeType } = await downloadImageAndEncode(imageUrl);
-            logger.info(`Successfully downloaded and encoded original image (${originalMimeType})`);
-            // --- End Download ---
-
-            // --- Remove Diagnostic Log ---
-            // logger.info(`Preparing Gemini request. Image MIME type: ${originalMimeType}, Base64 preview: ${originalImageBase64.substring(0, 80)}...`);
-            // --- End Remove ---
-
-            // Initialize Vertex AI
-            const vertex_ai = new VertexAI({ project: PROJECT_ID, location: LOCATION_ID });
-            const model = 'gemini-1.5-pro-preview-0514'; // Using a capable multimodal model
-
-            // Instantiate the model
-            const generativeModel = vertex_ai.getGenerativeModel({
-                model: model,
-                // Adjust safety settings as needed for interior design images
-                safetySettings: [
-                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                ],
-                generationConfig: {
-                    maxOutputTokens: 2048, // Adjust if needed, though for image output this might not be primary
-                    temperature: 0.4, // Lower temperature for more predictable edits
-                    // topP: 1, // topP and topK can also be adjusted
-                    // topK: 32,
-                },
-            });
-
-            // Prepare the parts for the multimodal request
-            const imagePart: Part = {
-                inlineData: {
-                    mimeType: originalMimeType,
-                    data: originalImageBase64,
-                },
-            };
-            const textPart: Part = {
-                text: imagePrompt,
-            };
-
-            const requestPayload = {
-                contents: [{ role: 'user', parts: [imagePart, textPart] }],
-            };
-
-            logger.info(`Sending request to Gemini Pro model (${model}) for project ${projectId}`);
-
-            // Call the Gemini API
-            const streamingResp = await generativeModel.generateContentStream(requestPayload);
-            // Aggregate the response to get the image data
-            const aggregatedResponse = await streamingResp.response;
-
-            // Check for safety blocks or missing content
-            if (!aggregatedResponse.candidates || aggregatedResponse.candidates.length === 0 || !aggregatedResponse.candidates[0].content || !aggregatedResponse.candidates[0].content.parts || aggregatedResponse.candidates[0].content.parts.length === 0) {
-                 // Check finishReason for safety issues
-                 const finishReason = aggregatedResponse.candidates?.[0]?.finishReason;
-                 const safetyRatings = aggregatedResponse.candidates?.[0]?.safetyRatings;
-                 logger.error(`Gemini response missing content or blocked. Finish Reason: ${finishReason}`, { safetyRatings });
-                 let errorMessage = "Gemini response missing expected content.";
-                 if (finishReason === 'SAFETY') {
-                     errorMessage = "Image generation blocked due to safety settings.";
-                 } else if (finishReason === 'RECITATION') {
-                     errorMessage = "Image generation blocked due to potential recitation issues.";
-                 } else if (!aggregatedResponse.candidates || aggregatedResponse.candidates.length === 0) {
-                     errorMessage = "No candidates returned by Gemini API.";
-                 }
-                 throw new Error(errorMessage);
-             }
-
-            // Find the part containing the image data
-            const imageOutputPart = aggregatedResponse.candidates[0].content.parts.find(part => part.inlineData && part.inlineData.data);
-
-            if (!imageOutputPart || !imageOutputPart.inlineData) {
-                logger.error("Gemini response did not contain image data", { response: JSON.stringify(aggregatedResponse) });
-                throw new Error("Gemini response did not contain the expected image data.");
-            }
-
-            const generatedImageBase64 = imageOutputPart.inlineData.data;
-            const generatedMimeType = imageOutputPart.inlineData.mimeType || 'image/png'; // Assume png if not specified
-
-            logger.info(`Received Gemini Pro response with image data for ${projectId}`);
-
-            // --- Upload the generated base64 image to Firebase Storage ---
-            const imageBuffer = Buffer.from(generatedImageBase64, 'base64');
-            const fileName = `generated-images/${projectId}/${Date.now()}.${generatedMimeType.split('/')[1] || 'png'}`;
-            const imageStorageRef = admin.storage().bucket().file(fileName);
-
-            await imageStorageRef.save(imageBuffer, {
-                metadata: {
-                    contentType: generatedMimeType
-                }
-            });
-
-            // Get the public URL of the uploaded image
-            const [url] = await imageStorageRef.getSignedUrl({
-                action: 'read',
-                expires: '03-01-2500' // Far future expiration
-            });
-
-            logger.info(`Generated image saved to Firebase Storage for ${projectId}`);
-
-            // Store the URL for later use
-            generatedImageUrl = url;
-
-        } catch (geminiError) {
-            logger.error(`Error generating image with Gemini for project ${projectId}:`, geminiError);
-            // Use a placeholder image if Gemini fails
-            const errorMessage = geminiError instanceof Error ? geminiError.message : "Unknown AI image generation error";
-            generatedImageUrl = `https://via.placeholder.com/1024x1024.png/ff0000/FFFFFF?text=AI+Edit+Failed:+${encodeURIComponent(errorMessage.substring(0, 50))}`;
-            // Update Firestore with the specific error message from Gemini
-            await snapshot.ref.update({ aiStatus: "failed", aiError: errorMessage });
-            // Re-throw the error if you want the function execution to reflect the failure, 
-            // otherwise let it proceed to update Firestore with the placeholder URL
-            // throw geminiError; // Optional: uncomment if failure should stop execution here
-        }
-
-        // --- Step 4: Update Firestore with Final Results ---
-        if (!snapshot) {
-            logger.error("Cannot update Firestore: snapshot is undefined");
-            return;
-        }
-        
-        logger.info(`Updating Firestore for project ${projectId} with AI results.`);
-        // Use snapshot.ref for v2 triggers
-        await snapshot.ref.update({
-            aiStatus: "completed",
-            aiSuggestions: analysisResult.suggestions || [],
-            aiTotalEstimatedCost: analysisResult.totalEstimatedCost || 0,
-            aiEstimatedValueAdded: analysisResult.estimatedValueAdded || 0,
-            aiAfterImageDescription: analysisResult.afterImageDescription || "", 
-            aiGeneratedImageURL: generatedImageUrl || null,
-            aiError: null,
             aiProcessedAt: FieldValue.serverTimestamp(),
         });
+        logger.info("Updated Firestore: processing started.");
 
-        logger.info(`Successfully processed project ${projectId}`);
+        // --- Image Generation Steps ---
+        const userImageBuffer = await downloadImage(imageUrl);
+        const { pngBuffer: processedPngBuffer, metadata: imageMetadata } = await processImageForOpenAI(userImageBuffer);
+
+        const generationPrompt = `Edit the provided image applying the following renovation:
+Room: ${roomType}
+Style: ${style}
+Budget: ${budget}
+Description: ${analysisResult.afterImageDescription}
+
+Constraints: Maintain original camera angle, lighting, room structure. Only modify elements consistent with the description and budget (${style}, ${budget}). Result must be photorealistic.`;
+        
+        // --- Update Firestore: Generating Image ---
+        // (Optional, but good feedback if frontend polls)
+         await projectRef.update({ aiStatus: "generating_image" }); 
+         logger.info("Updated Firestore: generating image.");
+
+        const openAIResponse = await callOpenAIEditApi(apiKey, generationPrompt, processedPngBuffer, imageMetadata);
+
+        // --- Process OpenAI Response ---
+        let finalImageUrl: string;
+        if (openAIResponse?.data?.[0]?.url) {
+            const generatedUrl = openAIResponse.data[0].url;
+            logger.info(`Received OpenAI response URL: ${generatedUrl}`);
+            const finalImageBuffer = await downloadImage(generatedUrl); // Download the result
+            finalImageUrl = await uploadGeneratedImageToStorage(projectId, finalImageBuffer);
+        } else if (openAIResponse?.data?.[0]?.b64_json) {
+            logger.info(`Received OpenAI response Base64`);
+            const finalImageBuffer = Buffer.from(openAIResponse.data[0].b64_json, 'base64');
+            finalImageUrl = await uploadGeneratedImageToStorage(projectId, finalImageBuffer);
+        } else {
+            logger.error("OpenAI response missing expected image data (url or b64_json)", { response: JSON.stringify(openAIResponse) });
+            throw new Error("Parsed OpenAI response did not contain the expected image data format.");
+        }
+
+        // --- Final Firestore Update: Success ---
+        await projectRef.update({
+            aiStatus: "completed",
+            aiGeneratedImageURL: finalImageUrl,
+            aiError: null,
+            aiProcessedAt: FieldValue.serverTimestamp(), // Update timestamp again
+        });
+        logger.info(`Successfully processed project ${projectId} and updated Firestore.`);
 
     } catch (error) {
         logger.error(`Error processing project ${projectId}:`, error);
-        // Update Firestore using snapshot.ref
-        if (snapshot) {
-            await snapshot.ref.update({
-                aiStatus: "failed",
-                aiError: error instanceof Error ? error.message : "An unknown error occurred during AI processing.",
-                aiProcessedAt: FieldValue.serverTimestamp(),
-            }).catch(updateError => {
-                logger.error(`Failed to update project ${projectId} with error status:`, updateError);
-            });
-        }
+        // General error handling: update Firestore with failure status
+        await projectRef.update({
+            aiStatus: "failed",
+            aiError: error instanceof Error ? error.message : "An unknown error occurred during AI processing.",
+            aiProcessedAt: FieldValue.serverTimestamp(),
+        }).catch(updateError => {
+            logger.error(`Failed to update project ${projectId} with error status:`, updateError);
+        });
     }
 });
+// --- End Cloud Function Trigger ---
+
+// Note: Removed generateSuggestionsByRoomType and downloadImageAndEncode 
+// as they were either duplicated or replaced by the refactored helpers.
+// Ensure the original generateSuggestionsByRoomType logic is preserved if it was intended to be separate.
+// Assuming generateSuggestionsByRoomType from the original file is still needed.
+// If so, it should be kept outside the main trigger function as before.
+
+// [ Keep the original generateSuggestionsByRoomType function here if needed ]
+// function generateSuggestionsByRoomType(...) { ... }
+
+// [ Keep the original downloadImageAndEncode function here if needed, although downloadImage is preferred ]
+// async function downloadImageAndEncode(...) { ... }

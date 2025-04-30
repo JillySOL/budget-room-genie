@@ -1,0 +1,85 @@
+# Product Requirements Document: RenoMate
+
+## 1. Introduction & Goal
+
+**Goal:** To create RenoMate, an AI-powered web application that assists users with DIY home renovations and room flipping by providing realistic, budget-conscious visual previews and actionable suggestions.
+
+**Vision:** Become the go-to tool for visualizing cost-effective home improvements, leveraging AI for photorealistic previews and fostering a community around shared renovation styles.
+
+## 2. Target Audience
+
+*   **DIY Homeowners:** Individuals looking to renovate their own spaces, seeking inspiration, budget guidance, and visualization before starting work.
+*   **Real Estate Flippers:** Professionals needing quick, cost-effective renovation ideas and visualizations to maximize property value.
+*   **Interior Designers:** Professionals looking for a tool to quickly iterate on design concepts and present realistic previews to clients within specific budgets.
+
+## 3. Core Problem Solved
+
+RenoMate addresses the common challenges faced during renovation planning:
+
+*   **Visualization Difficulty:** Users struggle to accurately picture how potential changes (paint, fixtures, flooring) will look in *their specific room*.
+*   **Budget Uncertainty:** Difficulty estimating costs and identifying renovations that offer the best value within a set budget.
+*   **Inspiration Gap:** Finding realistic and achievable renovation ideas tailored to their space and budget, rather than aspirational but costly designs.
+
+## 4. Key Features
+
+### 4.1 Core AI Renovation Workflow
+
+*   **Image Upload:** Users upload a clear photo of the room they wish to renovate.
+*   **Parameter Input:** Users specify:
+    *   Room Type (e.g., Bathroom, Kitchen, Bedroom, Living Room)
+    *   Desired Design Style (e.g., Modern, Traditional, Farmhouse, selected during onboarding or per project)
+    *   Budget Level (e.g., Low: ~$500, Medium: ~$2500, High: ~$5000+)
+*   **AI Analysis & Suggestion:**
+    *   The system provides text-based suggestions for cost-effective improvements based on room type and budget (e.g., "Paint Refresh", "New Fixtures").
+    *   Includes estimated costs for suggested items and an estimated total value added by the renovation.
+*   **AI Image Generation/Editing:**
+    *   Leveraging Google Vertex AI (Gemini), the application edits the *original user-uploaded image* to create a photorealistic "after" preview reflecting the suggested changes and selected style.
+    *   The generated image maintains the original room structure and perspective.
+*   **Results Display:** Users see the "before" image, the "after" image, the list of suggestions, cost breakdown, and estimated value added.
+
+### 4.2 User & Project Management
+
+*   **User Accounts:** Secure user authentication and profile management (Leveraging Firebase Auth).
+*   **Project Saving:** Users can save their renovation projects (before/after images, parameters, suggestions) to their account (Leveraging Firestore).
+
+### 4.3 Future Enhancements
+
+*   **Public Sharing & Community:**
+    *   Option for users to make their completed renovation projects public.
+    *   A browsable gallery of public projects.
+    *   Ability for users to "like" public projects, surfacing popular styles.
+*   **"Copy Style" Feature:** Allow users to select a public project they like and apply its style parameters (style, potentially color palettes inferred) to their *own* uploaded room image.
+*   **Material Shopping Lists:** Generate basic shopping lists based on the AI suggestions (e.g., "1 gallon neutral paint," "modern faucet," "vanity light fixture").
+*   **Enhanced Cost Estimation:** Improve the accuracy of cost estimations, potentially using AI to analyze the uploaded image for room size/complexity factors or integrating regional cost data.
+
+## 5. Non-Functional Requirements
+
+*   **Technology Stack:**
+    *   Frontend: React, Vite, TypeScript, Tailwind CSS
+    *   Backend: Firebase (Cloud Functions, Firestore, Auth, Storage)
+    *   AI: Google Cloud Vertex AI (Gemini 1.5 Pro or similar multimodal model)
+*   **Performance:** Image generation should be reasonably fast (aiming for under 60 seconds). The web interface should be responsive and smooth.
+*   **Realism:** The AI-generated "after" images must strive for photorealism and accurately reflect the suggested changes within the original image's context.
+*   **Usability:** Simple, intuitive user interface, especially for the image upload and parameter selection steps.
+
+## 6. Monetization Strategy
+
+*   **Model:** Subscription-based.
+*   **Trial:** Offer one (1) free AI renovation generation per user account.
+*   **Paid Access:** Subsequent generations require an active subscription.
+*   **Pricing:**
+    *   Subscription tiers and pricing (e.g., monthly, annual) to be determined based on market research and best practices, referencing data like the RevenueCat "State of Subscription Apps 2024" report [[cite: https://www.revenuecat.com/state-of-subscription-apps-2024/]].
+    *   Consider offering common price points (e.g., ~$9.99/month, ~$29.99-$59.99/year) depending on target user value and feature set. Keep the initial offering simple (e.g., one main tier).
+
+## 7. Unique Selling Proposition (USP)
+
+*   **Focus on Realism & Budget:** Unlike aspirational design tools, RenoMate prioritizes realistic, achievable renovations within defined budget constraints.
+*   **Cost-Effective Value:** Helps users identify improvements that add tangible value without excessive spending.
+*   **Community Inspiration:** Future ability to leverage styles from successful, real-world (or realistically generated) community projects.
+*   **Personalized Visualization:** Edits the user's *own* room photo, providing a highly personalized preview.
+
+## 8. Future Considerations
+
+*   Integration with specific retailer APIs for real-time material pricing.
+*   Advanced AI features like object removal/addition or structural change visualization (if technically feasible while maintaining realism).
+*   Mobile application version. 

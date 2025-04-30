@@ -59,7 +59,8 @@
     },
     "hub": {
       "port": 4400
-    }
+    },
+    "singleProjectMode": true
   },
   "storage": {
     "rules": "storage.rules"

@@ -55,3 +55,15 @@ cdk.out/
 
 # Firebase Admin SDK keys
 *-firebase-adminsdk-*.json
+
+# Added by Claude Task Master
+logs
+*.log
+dev-debug.log
+# Dependency directories
+.idea
+.vscode
+# OS specific
+# Task files
+tasks.json
+tasks/ 
