@@ -165,18 +165,11 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
     const file = selectedFile; // Use the file from state
 
     try {
-      // REMOVED Step 1: Get pre-signed URL from API Gateway
-      // We now upload directly using Firebase Storage in OnboardingPage
-
-      // REMOVED Step 2: Upload image to S3 using the pre-signed URL
-
-      // TODO: Update this component if it's still used. 
-      // Currently, the upload logic is handled within OnboardingPage.tsx.
-      // If this component IS used, it needs refactoring for Firebase Storage.
+      // This is just a placeholder to simulate successful selection
       
-      console.log("Placeholder: Upload logic needs update for Firebase.");
-      // Call onUploadComplete or equivalent if needed
-      // onUploadComplete(uploadResponse.key); // Pass Firebase path/URL?
+      // Simulate upload success
+      setUploadSuccess(true);
+      setUploadProgress(100);
       
     } catch (err) {
       console.error('Upload error:', err);
@@ -339,4 +332,4 @@ export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
       )}
     </Card>
   );
-} 
+}  
