@@ -315,7 +315,17 @@ async function callOpenAIEditApi(
     prompt: string,
     imageBuffer: Buffer,
     imageMetadata: sharp.Metadata // Pass metadata for logging
-): Promise<any> {
+): Promise<{
+    data?: Array<{
+        url?: string;
+        b64_json?: string;
+    }>;
+    error?: {
+        message: string;
+        type: string;
+        code: string;
+    };
+}> {
     const tempDir = os.tmpdir();
     // Use a more unique temp file name (though still might collide in high concurrency)
     const tempFileName = `openai_edit_input_${process.pid}_${Date.now()}.png`;
