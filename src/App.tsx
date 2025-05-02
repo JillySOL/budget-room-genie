@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Index from "./pages/Index";
-import ProjectsPage from "./pages/ProjectsPage";
+import ProjectsPage from "./pages/Projects";
 import NewProjectPage from "./pages/NewProjectPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import ExplorePage from "./pages/ExplorePage";
@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import OnboardingPage from "./pages/OnboardingPage";
 import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
+import SubscriptionPage from "./pages/SubscriptionPage";
 import { BottomNav } from "./components/navigation/BottomNav";
 import { Loader2 } from 'lucide-react';
 
@@ -65,6 +66,7 @@ const App = () => {
                   {/* Moved Onboarding route here */}
                   <Route path="/onboarding" element={<OnboardingPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/subscription" element={<SubscriptionPage />} />
                   <Route path="/project/:id" element={<ProjectDetailPage />} />
                   <Route path="/projects" element={<ProjectsPage />} />
                 </Route>
