@@ -219,7 +219,7 @@ const Projects = () => {
       setIsLoading(false);
       setProjectDocs([]); // Clear docs if not logged in
     }
-  }, [currentUser, sortBy, filterBy]);
+  }, [currentUser, sortBy, filterBy, fetchProjects]);
 
   // Loading state while Firebase auth initializes or projects are fetching
   if (isLoading && !projectDocs.length) {
@@ -468,4 +468,4 @@ const Projects = () => {
   );
 };
 
-export default Projects;                
+export default Projects;                  

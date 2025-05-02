@@ -8,42 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-
-export enum SubscriptionPlanType {
-  FREE = 'free',
-  BASIC = 'basic',
-  PREMIUM = 'premium'
-}
-
-interface SubscriptionPlan {
-  id: SubscriptionPlanType;
-  name: string;
-  price: number;
-  description: string;
-  features: string[];
-  generationsPerMonth: number;
-  enhancedDescriptions: boolean;
-  projectsLimit: number;
-}
-
-interface UserSubscription {
-  userId: string;
-  planId: SubscriptionPlanType;
-  status: 'active' | 'canceled' | 'expired';
-  startDate: { toDate: () => Date };
-  endDate: { toDate: () => Date };
-  generationsUsed: number;
-  lastRenewal: { toDate: () => Date };
-  paymentMethod?: string;
-  autoRenew: boolean;
-}
-
-interface SubscriptionCheckResult {
-  canGenerate: boolean;
-  reason?: string;
-  subscription?: UserSubscription;
-  plans: Record<SubscriptionPlanType, SubscriptionPlan>;
-}
+import { SubscriptionPlanType, SubscriptionPlan, UserSubscription, SubscriptionCheckResult } from '@/types/subscription';
 
 const SubscriptionPage: React.FC = () => {
   const { currentUser } = useAuth();
