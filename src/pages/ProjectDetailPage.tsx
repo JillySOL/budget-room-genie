@@ -243,32 +243,61 @@ const ProjectDetailPage = () => {
           </div>
 
           {showAiState ? (
-            <div className="relative mb-6 rounded-lg overflow-hidden shadow-md border dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center h-64 p-4">
-              <Loader2 className="h-8 w-8 animate-spin mb-4 text-budget-accent" />
-              <p className="text-sm text-center mx-auto max-w-xs font-medium text-gray-700 dark:text-gray-300">
-                {isAiProcessing ? 
-                  currentLoadingMessage : 
-                  isAiFailed ?
-                  "Unable to generate design. Please try again." :
-                  "Waiting for AI to start processing your design..."}
-              </p>
-              {isAiProcessing && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">This may take up to a minute...</p>
-              )}
-              {isAiFailed && projectData.aiError && (
-                <p className="text-xs text-red-500 mt-2 text-center max-w-xs">
-                  Error: {projectData.aiError}
-                </p>
-              )}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleRefresh} 
-                className="mt-4 flex items-center gap-1"
-              >
-                <RefreshCw className="h-3 w-3" />
-                <span>Refresh</span>
-              </Button>
+            <div className="relative mb-6 rounded-lg overflow-hidden shadow-md border dark:border-gray-700 bg-gray-100 dark:bg-gray-800 h-64">
+              {/* Show the before image with a loading overlay */}
+              <div className="absolute inset-0 w-full h-full">
+                {beforeImage && (
+                  <img 
+                    src={beforeImage} 
+                    alt="Original Room" 
+                    className="w-full h-full object-cover opacity-50"
+                  />
+                )}
+                <div className="absolute top-3 left-3 z-10 bg-black/70 text-white px-3 py-1 rounded-md text-xs font-medium shadow-sm">
+                  Before
+                </div>
+              </div>
+              
+              {/* Loading overlay with animation */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-budget-accent/20 to-transparent bg-[length:400%_100%] animate-gradient-x flex flex-col items-center justify-center p-4">
+                <div className="bg-white/90 dark:bg-gray-800/90 rounded-lg p-4 shadow-lg max-w-xs w-full backdrop-blur-sm">
+                  <div className="flex items-center justify-center mb-3">
+                    <Loader2 className="h-8 w-8 animate-spin text-budget-accent" />
+                  </div>
+                  <p className="text-sm text-center font-medium text-gray-700 dark:text-gray-300">
+                    {isAiProcessing ? 
+                      currentLoadingMessage : 
+                      isAiFailed ?
+                      "Unable to generate design. Please try again." :
+                      "Waiting for AI to start processing your design..."}
+                  </p>
+                  
+                  {/* Progress bar for processing state */}
+                  {isAiProcessing && (
+                    <div className="mt-3 w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
+                      <div className="bg-budget-accent h-1.5 rounded-full animate-pulse-width"></div>
+                    </div>
+                  )}
+                  
+                  {isAiProcessing && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">This may take up to a minute...</p>
+                  )}
+                  {isAiFailed && projectData.aiError && (
+                    <p className="text-xs text-red-500 mt-2 text-center">
+                      Error: {projectData.aiError}
+                    </p>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleRefresh} 
+                    className="mt-3 w-full flex items-center justify-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    <span>Refresh</span>
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : (
             <EnhancedBeforeAfter
