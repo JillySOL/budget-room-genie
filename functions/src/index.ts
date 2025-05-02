@@ -409,6 +409,23 @@ async function uploadGeneratedImageToStorage(
     }
 }
 
+// NEW FUNCTION DEFINITION
+async function updateUserSubscription(userId: string, planId: SubscriptionPlanType): Promise<boolean> {
+  try {
+    const userRef = admin.firestore().collection('users').doc(userId);
+    await userRef.update({
+      subscriptionPlan: planId,
+      // Potentially update other fields like subscriptionStartDate, etc.
+      updatedAt: FieldValue.serverTimestamp() 
+    });
+    logger.info(`Successfully updated subscription plan to ${planId} for user ${userId}`);
+    return true;
+  } catch (error) {
+    logger.error(`Failed to update subscription for user ${userId} to plan ${planId}:`, error);
+    return false; // Indicate failure
+  }
+}
+
 // --- Main Cloud Function Trigger ---
 export const generateRenovationSuggestions = onDocumentCreated("projects/{projectId}", async (event: {
     data?: FirebaseFirestore.DocumentSnapshot;
