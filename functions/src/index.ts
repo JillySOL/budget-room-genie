@@ -61,7 +61,12 @@ async function downloadImageAndEncode(url: string): Promise<{ data: string; mime
 }
 
 // Generate renovation suggestions based on room type
-function generateSuggestionsByRoomType(roomType: string, budget: string, style: string): any {
+function generateSuggestionsByRoomType(roomType: string, budget: string, style: string): {
+    suggestions: Array<{item: string, cost: number, description: string}>;
+    totalEstimatedCost: number;
+    estimatedValueAdded: number;
+    afterImageDescription: string;
+} {
     // Default values
     let suggestions = [];
     let totalEstimatedCost = 0;
@@ -310,7 +315,17 @@ async function callOpenAIEditApi(
     prompt: string,
     imageBuffer: Buffer,
     imageMetadata: sharp.Metadata // Pass metadata for logging
-): Promise<any> {
+): Promise<{
+    data?: Array<{
+        url?: string;
+        b64_json?: string;
+    }>;
+    error?: {
+        message: string;
+        type: string;
+        code: string;
+    };
+}> {
     const tempDir = os.tmpdir();
     // Use a more unique temp file name (though still might collide in high concurrency)
     const tempFileName = `openai_edit_input_${process.pid}_${Date.now()}.png`;
@@ -402,7 +417,11 @@ async function uploadGeneratedImageToStorage(
 }
 
 // --- Main Cloud Function Trigger ---
-export const generateRenovationSuggestions = onDocumentCreated("projects/{projectId}", async (event) => {
+export const generateRenovationSuggestions = onDocumentCreated("projects/{projectId}", async (event: {
+    data?: FirebaseFirestore.DocumentSnapshot;
+    id: string;
+    params: {[key: string]: string};
+}) => {
     const snapshot = event.data;
     if (!snapshot) {
         logger.error("No data associated with the event");

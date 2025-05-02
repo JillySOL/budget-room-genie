@@ -7,13 +7,10 @@ import { toast } from 'sonner';
 // Import the hook for fetching user photos
 import { useFetchUserPhotos } from "@/hooks/useFetchUserPhotos";
 
-interface RoomPhotoUploadProps {
-  // Remove onUploadComplete as navigation happens internally
-  // onUploadComplete: (imageUrl: string) => void;
-}
+type RoomPhotoUploadProps = Record<string, never>;
 
-// Remove onUploadComplete from props
-export function RoomPhotoUpload({ }: RoomPhotoUploadProps) {
+// Remove empty object pattern
+export function RoomPhotoUpload(_props: RoomPhotoUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);

@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
 // Update Project interface to expect thumbnailUrl
-interface Project {
+export interface Project {
   id: string;
   title: string;
   userId: string; // Included for completeness, though not directly used in card
@@ -111,4 +111,4 @@ export function ProjectCard({ project }: ProjectCardProps) {
       </Card>
     </Link>
   );
-} 
+}  

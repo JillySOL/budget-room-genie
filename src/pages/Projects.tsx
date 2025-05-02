@@ -43,9 +43,9 @@ const Projects = () => {
           const querySnapshot = await getDocs(q);
           // Set the raw documents
           setProjectDocs(querySnapshot.docs);
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error("Error fetching projects:", err);
-          setError(err.message || "An unexpected error occurred.");
+          setError(err instanceof Error ? err.message : "An unexpected error occurred.");
           setProjectDocs([]); // Clear docs on error
         } finally {
           setIsLoading(false);
@@ -126,12 +126,16 @@ const Projects = () => {
             {projectDocs.map((doc) => {
               // Extract data and pass to ProjectCard, casting as needed
               // This assumes ProjectCard expects an object with project data
-              const projectData = { id: doc.id, ...doc.data() }; 
+              const projectData = { 
+                id: doc.id, 
+                ...doc.data() 
+              }; 
+              
+              // Use type assertion for the project data
               return (
                 <ProjectCard 
                   key={projectData.id} 
-                  project={projectData as any} // Cast to any for now to bypass strict type check
-                                               // TODO: Define a proper type or adjust ProjectCard props
+                  project={projectData as import('@/components/projects/ProjectCard').Project} 
                 /> 
               );
             })}
@@ -142,4 +146,4 @@ const Projects = () => {
   );
 };
 
-export default Projects; 
+export default Projects;        

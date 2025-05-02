@@ -13,7 +13,7 @@ type GetTokenFunction = (options?: { template?: string }) => Promise<string | nu
 // Interface for API client options
 interface ApiClientOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-  body?: any; // Can be any type, will be JSON.stringified for POST/PUT/PATCH
+  body?: Record<string, unknown>; // Will be JSON.stringified for POST/PUT/PATCH
   headers?: Record<string, string>;
   // Add other fetch options if needed
 }
@@ -54,10 +54,10 @@ async function makeAuthenticatedRequest<T>(
 
   if (!response.ok) {
     let errorText = `API request failed for ${method} ${path}`;
-    let errorDetails: any = null;
+    let errorDetails: Record<string, unknown> = {};
     try {
       errorDetails = await response.json();
-      errorText = errorDetails.message || errorText; // Use message from backend if available
+      errorText = typeof errorDetails.message === 'string' ? errorDetails.message : errorText; // Use message from backend if available
       console.error('API Error Details:', errorDetails); 
     } catch (e) {
       console.warn('Could not parse error response as JSON');
@@ -96,4 +96,4 @@ export function useApiClient() {
 //   get: <T,>(path: string, getToken: GetTokenFunction) => makeAuthenticatedRequest<T>(getToken, path, { method: 'GET' }),
 //   post: <T,>(path: string, body: any, getToken: GetTokenFunction) => makeAuthenticatedRequest<T>(getToken, path, { method: 'POST', body }),
 //   // ... other methods
-// }; 
+// };      
