@@ -189,7 +189,7 @@ const Projects = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, db, filterBy, sortBy, lastVisible, PROJECTS_PER_PAGE, setIsLoading, setError, setLastVisible, setHasMore, setProjectDocs]);
+  }, [currentUser, filterBy, sortBy, lastVisible, setIsLoading, setError, setLastVisible, setHasMore, setProjectDocs]);
   
   const handleLoadMore = () => {
     if (hasMore && !isLoading) {
@@ -468,4 +468,4 @@ const Projects = () => {
   );
 };
 
-export default Projects;                      
+export default Projects;                        
