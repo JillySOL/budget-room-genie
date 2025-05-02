@@ -16,15 +16,6 @@ const ExistingPhotoSelector: React.FC<ExistingPhotoSelectorProps> = ({
   selectedUrl,
   onSelect,
 }) => {
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-24">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading gallery...</span>
-      </div>
-    );
-  }
-
   const uniqueUrls = React.useMemo(() => {
     const urls = new Set<string>();
     projects.forEach(doc => {
@@ -35,6 +26,15 @@ const ExistingPhotoSelector: React.FC<ExistingPhotoSelectorProps> = ({
     });
     return Array.from(urls);
   }, [projects]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-24">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading gallery...</span>
+      </div>
+    );
+  }
 
   if (uniqueUrls.length === 0) {
     return <p className="text-sm text-center text-muted-foreground mt-4">No existing photos found in your projects.</p>;
@@ -64,4 +64,4 @@ const ExistingPhotoSelector: React.FC<ExistingPhotoSelectorProps> = ({
   );
 };
 
-export default ExistingPhotoSelector; 
+export default ExistingPhotoSelector;  

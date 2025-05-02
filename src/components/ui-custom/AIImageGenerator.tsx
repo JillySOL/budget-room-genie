@@ -53,10 +53,6 @@ const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) => {
     }
   };
 
-  const useExamplePrompt = (examplePrompt: string) => {
-    setPrompt(examplePrompt);
-  };
-
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -85,7 +81,7 @@ const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) => {
               variant="outline" 
               size="sm" 
               className="text-xs"
-              onClick={() => useExamplePrompt(examplePrompt)}
+              onClick={() => setPrompt(examplePrompt)}
             >
               {examplePrompt.slice(0, 20)}...
             </Button>

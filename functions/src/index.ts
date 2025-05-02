@@ -61,7 +61,12 @@ async function downloadImageAndEncode(url: string): Promise<{ data: string; mime
 }
 
 // Generate renovation suggestions based on room type
-function generateSuggestionsByRoomType(roomType: string, budget: string, style: string): any {
+function generateSuggestionsByRoomType(roomType: string, budget: string, style: string): {
+    suggestions: Array<{item: string, cost: number, description: string}>;
+    totalEstimatedCost: number;
+    estimatedValueAdded: number;
+    afterImageDescription: string;
+} {
     // Default values
     let suggestions = [];
     let totalEstimatedCost = 0;
@@ -402,7 +407,11 @@ async function uploadGeneratedImageToStorage(
 }
 
 // --- Main Cloud Function Trigger ---
-export const generateRenovationSuggestions = onDocumentCreated("projects/{projectId}", async (event) => {
+export const generateRenovationSuggestions = onDocumentCreated("projects/{projectId}", async (event: {
+    data?: FirebaseFirestore.DocumentSnapshot;
+    id: string;
+    params: {[key: string]: string};
+}) => {
     const snapshot = event.data;
     if (!snapshot) {
         logger.error("No data associated with the event");

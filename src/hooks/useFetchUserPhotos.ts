@@ -29,10 +29,10 @@ export function useFetchUserPhotos() {
           console.log('useFetchUserPhotos: Request successful, setting photos', data);
           setPhotos(data || []);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (isMounted) {
           console.error("useFetchUserPhotos: Error fetching photos:", err);
-          const errorMessage = err.message || "An unknown error occurred while fetching photos.";
+          const errorMessage = err instanceof Error ? err.message : "An unknown error occurred while fetching photos.";
           setError(errorMessage);
           toast.error(errorMessage);
         }
@@ -55,4 +55,4 @@ export function useFetchUserPhotos() {
 
   console.log('useFetchUserPhotos: Returning state', { isLoading, error, photos });
   return { photos, isLoading, error };
-} 
+}  
