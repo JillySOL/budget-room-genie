@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -124,7 +124,7 @@ const Projects = () => {
     }
   };
 
-  const fetchProjects = async (loadMore = false) => {
+  const fetchProjects = useCallback(async (loadMore = false) => {
     if (!currentUser) return;
     
     setIsLoading(!loadMore); // Only show loading indicator for initial load
@@ -189,7 +189,7 @@ const Projects = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentUser, db, filterBy, sortBy, lastVisible, PROJECTS_PER_PAGE, setIsLoading, setError, setLastVisible, setHasMore, setProjectDocs]);
   
   const handleLoadMore = () => {
     if (hasMore && !isLoading) {
@@ -468,4 +468,4 @@ const Projects = () => {
   );
 };
 
-export default Projects;                  
+export default Projects;                      
