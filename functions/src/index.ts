@@ -7,7 +7,7 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-import {onRequest} from "firebase-functions/v2/https";
+import {onRequest, onCall} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import fetch from "node-fetch";
@@ -27,6 +27,9 @@ import * as path from 'path';
 import * as os from 'os';
 import sharp from 'sharp'; // Import sharp
 import FormData from 'form-data'; // Import form-data library
+
+import { getOpenAIApiKey } from './services/openai';
+import { canUserGenerateDesign, getUserSubscription, subscriptionPlans, SubscriptionPlanType } from './services/subscriptions';
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
@@ -259,18 +262,8 @@ function generateSuggestionsByRoomType(roomType: string, budget: string, style: 
 
 // Fetches the OpenAI API key from Secret Manager
 async function getOpenApiKey(): Promise<string> {
-    logger.info("Initializing Secret Manager client...");
-    const secretClient = new SecretManagerServiceClient();
-    const secretName = 'projects/517067540669/secrets/openai-api-key/versions/latest';
-    logger.info(`Fetching secret: ${secretName}`);
     try {
-        const [version] = await secretClient.accessSecretVersion({ name: secretName });
-        const apiKey = version.payload?.data?.toString();
-        if (!apiKey) {
-            throw new Error("Secret payload data is empty or undefined.");
-        }
-        logger.info("Secret retrieved successfully from Secret Manager.");
-        return apiKey;
+        return await getOpenAIApiKey();
     } catch (secretError) {
         logger.error("Critical: Failed to retrieve OpenAI API key from Secret Manager:", secretError);
         throw new Error("Failed to retrieve API credentials."); // Re-throw critical error
@@ -526,3 +519,65 @@ Constraints: Maintain original camera angle, lighting, room structure. Only modi
     }
 });
 // --- End Cloud Function Trigger ---
+
+import { enhanceDIYDescriptions } from './enhanceDIYDescriptions';
+export { enhanceDIYDescriptions };
+
+export const checkUserSubscription = onCall({
+  maxInstances: 10,
+}, async (request) => {
+  // Ensure user is authenticated
+  if (!request.auth) {
+    logger.error("Unauthenticated call to checkUserSubscription");
+    throw new Error("Authentication required");
+  }
+  
+  const userId = request.auth.uid;
+  
+  try {
+    const result = await canUserGenerateDesign(userId);
+    return {
+      canGenerate: result.canGenerate,
+      reason: result.reason || null,
+      subscription: result.subscription || null,
+      plans: subscriptionPlans
+    };
+  } catch (error) {
+    logger.error(`Error checking subscription for user ${userId}:`, error);
+    throw new Error("Failed to check subscription status");
+  }
+});
+
+export const updateSubscription = onCall({
+  maxInstances: 10,
+}, async (request) => {
+  // Ensure user is authenticated
+  if (!request.auth) {
+    logger.error("Unauthenticated call to updateSubscription");
+    throw new Error("Authentication required");
+  }
+  
+  const userId = request.auth.uid;
+  const { planId } = request.data;
+  
+  if (!planId || !Object.values(SubscriptionPlanType).includes(planId as SubscriptionPlanType)) {
+    logger.error(`Invalid plan ID: ${planId}`);
+    throw new Error("Invalid subscription plan");
+  }
+  
+  try {
+    const success = await updateUserSubscription(userId, planId as SubscriptionPlanType);
+    
+    if (!success) {
+      throw new Error("Failed to update subscription");
+    }
+    
+    return {
+      success: true,
+      message: "Subscription updated successfully"
+    };
+  } catch (error) {
+    logger.error(`Error updating subscription for user ${userId}:`, error);
+    throw new Error("Failed to update subscription");
+  }
+});
