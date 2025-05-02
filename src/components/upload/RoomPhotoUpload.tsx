@@ -336,4 +336,4 @@ export function RoomPhotoUpload(_props: RoomPhotoUploadProps) {
       )}
     </Card>
   );
-}   
+} 
