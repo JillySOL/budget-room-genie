@@ -526,15 +526,3 @@ Constraints: Maintain original camera angle, lighting, room structure. Only modi
     }
 });
 // --- End Cloud Function Trigger ---
-
-// Note: Removed generateSuggestionsByRoomType and downloadImageAndEncode 
-// as they were either duplicated or replaced by the refactored helpers.
-// Ensure the original generateSuggestionsByRoomType logic is preserved if it was intended to be separate.
-// Assuming generateSuggestionsByRoomType from the original file is still needed.
-// If so, it should be kept outside the main trigger function as before.
-
-// [ Keep the original generateSuggestionsByRoomType function here if needed ]
-// function generateSuggestionsByRoomType(...) { ... }
-
-// [ Keep the original downloadImageAndEncode function here if needed, although downloadImage is preferred ]
-// async function downloadImageAndEncode(...) { ... }

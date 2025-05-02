@@ -13,6 +13,7 @@ import {
 import { db } from "@/firebase-config";
 import { doc, getDoc, DocumentData } from "firebase/firestore";
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface DIYSuggestion {
   item: string;
@@ -143,7 +144,7 @@ const ProjectDetailPage = () => {
       valueAdd: projectData.aiEstimatedValueAdded || 0,
       suggestions: projectData.aiSuggestions || [],
     }));
-    alert("Saved to Notebook (LocalStorage)");
+    toast('Saved to Local Notebook');
   };
 
   const handleDownload = () => {
@@ -369,7 +370,7 @@ const ProjectDetailPage = () => {
               onClick={handleSaveToNotebook}
               disabled={showAiState}
             >
-              <span className="mr-1">📝</span> Save to Notebook
+              <span className="mr-1">📝</span> Save to Local Notebook
             </Button>
             <Button onClick={handleDownload} className="gap-2 w-full sm:w-auto" disabled title="Functionality coming soon">
               <Download className="h-4 w-4" />
