@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from "@clerk/clerk-react"; // Add Clerk import
+import { useAuth } from "@/context/AuthContext";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -13,18 +13,18 @@ interface SubscriptionCheckoutProps {
 
 export function SubscriptionCheckout({ onSuccess }: SubscriptionCheckoutProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const { userId, getToken } = useAuth(); // Use Clerk hook
+  const { currentUser } = useAuth();
 
   const handleSubscribe = async () => {
     setIsLoading(true);
     try {
-      const token = await getToken(); // Get Clerk token
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
       
+      const token = await currentUser.getIdToken();
       if (!token) {
         throw new Error('No authentication token available');
-      }
-      if (!userId) { // Add check for userId
-        throw new Error('User not authenticated');
       }
       
       const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/create-checkout-session`, {
@@ -34,7 +34,7 @@ export function SubscriptionCheckout({ onSuccess }: SubscriptionCheckoutProps) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId: userId,
+          userId: currentUser.uid,
           priceId: import.meta.env.VITE_STRIPE_PRICE_ID,
         }),
       });
@@ -56,8 +56,8 @@ export function SubscriptionCheckout({ onSuccess }: SubscriptionCheckoutProps) {
 
       onSuccess?.();
     } catch (error) {
-      console.error('Subscription error:', error);
-      toast.error('Failed to start subscription process. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start subscription process. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

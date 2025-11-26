@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, RefreshCw } from "lucide-react";
+import { ArrowLeft, Download, RefreshCw, Loader2 } from "lucide-react";
 import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter.tsx";
 import {
   Accordion,
@@ -10,9 +10,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { db } from "@/firebase-config";
+import { db, functions } from "@/firebase-config";
 import { doc, getDoc, DocumentData } from "firebase/firestore";
-import { Loader2 } from 'lucide-react';
+import { httpsCallable } from 'firebase/functions';
 import { toast } from 'sonner';
 
 interface DIYSuggestion {
@@ -37,12 +37,17 @@ const ProjectDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(loadingMessages[0]);
+  const [fixingUrl, setFixingUrl] = useState(false);
+  const [needsUrlFix, setNeedsUrlFix] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   // Effect for cycling loading messages
   useEffect(() => {
     let messageInterval: NodeJS.Timeout | null = null;
     
-    if (projectData?.aiStatus === 'processing') {
+    const aiStatus = projectData?.aiStatus?.toLowerCase();
+    // Show loading messages for processing or generating_image states
+    if (aiStatus === 'processing' || aiStatus === 'generating_image') {
       let messageIndex = 0;
       setCurrentLoadingMessage(loadingMessages[messageIndex]); // Set initial message
       
@@ -80,25 +85,31 @@ const ProjectDetailPage = () => {
           
           // Check AI status
           const aiStatus = data.aiStatus;
-          console.log(`Initial AI status: ${aiStatus}`);
           
           // Only show processing state if not completed
           if (!aiStatus || aiStatus === "pending" || aiStatus === "processing") {
             // Always set up polling regardless of initial status
             pollInterval = setInterval(async () => {
-              console.log("Polling for updates...");
               try {
                 const updatedDocSnap = await getDoc(docRef);
                 if (updatedDocSnap.exists()) {
                   const updatedData = updatedDocSnap.data();
                   const updatedStatus = updatedData.aiStatus;
-                  console.log(`Updated AI status: ${updatedStatus}`);
                   
-                  // Always update the project data
                   setProjectData(updatedData);
                   
-                  if (updatedStatus === "completed" || updatedStatus === "failed") {
-                    console.log("AI processing finished, stopping polling");
+                  const hasGeneratedImage = updatedData.aiGeneratedImageURL && 
+                                           typeof updatedData.aiGeneratedImageURL === 'string' && 
+                                           updatedData.aiGeneratedImageURL.trim() !== '';
+                  
+                  if (updatedStatus === "completed") {
+                    if (hasGeneratedImage) {
+                      if (pollInterval) {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                      }
+                    }
+                  } else if (updatedStatus === "failed") {
                     if (pollInterval) {
                       clearInterval(pollInterval);
                       pollInterval = null;
@@ -106,17 +117,18 @@ const ProjectDetailPage = () => {
                   }
                 }
               } catch (pollError) {
-                console.error("Error polling for updates:", pollError);
+                // Silently handle polling errors - they're expected if the document doesn't exist yet
+                if (pollInterval) {
+                  clearInterval(pollInterval);
+                  pollInterval = null;
+                }
               }
-            }, 3000); // Poll more frequently (every 3 seconds)
-          } else {
-            // AI is already completed or failed
+            }, 3000); // Poll every 3 seconds
           }
         } else {
           setError("Project not found.");
         }
       } catch (err) {
-        console.error("Error fetching project:", err);
         setError("Failed to load project details.");
       } finally {
         setLoading(false);
@@ -128,7 +140,6 @@ const ProjectDetailPage = () => {
     // Clean up interval on component unmount
     return () => {
       if (pollInterval) {
-        console.log("Cleaning up polling interval");
         clearInterval(pollInterval);
       }
     };
@@ -164,9 +175,47 @@ const ProjectDetailPage = () => {
         setProjectData(refreshedData);
       }
     } catch (err) {
-      console.error("Error refreshing project data:", err);
+      // Silently handle refresh errors
     }
   };
+
+  const handleFixImageUrl = async () => {
+    if (!id || fixingUrl) return;
+    try {
+      setFixingUrl(true);
+      toast.loading("Fixing image URL...");
+      const fixImageUrl = httpsCallable<{ projectId: string }, { success: boolean; newUrl: string }>(
+        functions,
+        'fixImageUrl'
+      );
+      const result = await fixImageUrl({ projectId: id });
+      if (result.data.success) {
+        toast.success("Image URL fixed! Refreshing...");
+        await handleRefresh();
+        setNeedsUrlFix(false);
+        setImageLoadError(false);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to fix image URL");
+    } finally {
+      setFixingUrl(false);
+    }
+  };
+
+  // Auto-detect if URL needs fixing - show button if image exists but might not be loading
+  useEffect(() => {
+    if (projectData?.aiGeneratedImageURL && projectData?.aiStatus === 'completed') {
+      const url = projectData.aiGeneratedImageURL;
+      // Show fix button if URL exists and is in the public format (might need fixing)
+      // Always show it if we have a generated image URL and status is completed
+      setNeedsUrlFix(true);
+    } else {
+      setNeedsUrlFix(false);
+    }
+  }, [projectData?.aiGeneratedImageURL, projectData?.aiStatus]);
+
+  // Also show button if image fails to load (detected by EnhancedBeforeAfter component)
+  // This is handled by the imageLoadError state set by onLoadError callback
 
   if (loading) {
     return (
@@ -198,18 +247,29 @@ const ProjectDetailPage = () => {
                     : "/placeholder.svg";
                     
   // Determine afterImage based on AI status
-  let afterImage = "/after.png"; // Default fallback
+  // Priority: Use aiGeneratedImageURL if it exists (this is the nanobanana-generated image)
+  // Fallback: Use before image only if no generated image is available
+  const rawGeneratedImageURL = projectData.aiGeneratedImageURL;
+  const hasGeneratedImage = rawGeneratedImageURL && 
+                           typeof rawGeneratedImageURL === 'string' && 
+                           rawGeneratedImageURL.trim() !== '';
   
-  if (projectData.aiStatus === "completed" && projectData.aiGeneratedImageURL) {
-    afterImage = projectData.aiGeneratedImageURL;
+  let afterImage: string;
+  
+  if (hasGeneratedImage) {
+    afterImage = rawGeneratedImageURL.trim();
+  } else {
+    afterImage = beforeImage;
   }
 
   // Check if we should show AI processing/loading state
-  // Simpler check based directly on aiStatus
-  const isAiProcessing = projectData?.aiStatus === "processing";
-  const isAiPending = !projectData?.aiStatus || projectData?.aiStatus === "pending";
-  const isAiFailed = projectData?.aiStatus === "failed";
-  const showAiState = isAiProcessing || isAiPending || isAiFailed;
+  // Show loading state if: processing, pending, generating_image, or if completed but no generated image yet
+  const aiStatus = projectData?.aiStatus?.toLowerCase();
+  const isAiProcessing = aiStatus === "processing" || aiStatus === "generating_image";
+  const isAiPending = !aiStatus || aiStatus === "pending";
+  const isAiFailed = aiStatus === "failed";
+  // Show loading if processing/pending/failed OR if we don't have a generated image yet
+  const showAiState = isAiProcessing || isAiPending || isAiFailed || !hasGeneratedImage;
 
   // Get AI suggestions or use mock data if not available
   const aiSuggestions = projectData.aiSuggestions || [];
@@ -300,12 +360,55 @@ const ProjectDetailPage = () => {
                 </div>
               </div>
             </div>
+          ) : hasGeneratedImage && afterImage !== beforeImage ? (
+            // Only show before/after comparison when we have a valid, different generated image
+            <div className="mb-6">
+              {(needsUrlFix || imageLoadError) && (
+                <div className="mb-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-600 rounded-lg">
+                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-3">
+                    ⚠️ {imageLoadError ? 'Image failed to load. Click to fix the URL and make the file public.' : 'Image URL needs to be updated to display correctly.'}
+                  </p>
+                  <Button
+                    variant="default"
+                    size="default"
+                    onClick={handleFixImageUrl}
+                    disabled={fixingUrl}
+                    className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-medium"
+                  >
+                    {fixingUrl ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Fixing URL...
+                      </>
+                    ) : (
+                      '🔧 Fix Image URL Now'
+                    )}
+                  </Button>
+                </div>
+              )}
+              <EnhancedBeforeAfter
+                beforeImage={beforeImage}
+                afterImage={afterImage}
+                className="rounded-lg overflow-hidden shadow-md border dark:border-gray-700"
+                onLoadError={() => setImageLoadError(true)}
+              />
+            </div>
           ) : (
-            <EnhancedBeforeAfter
-              beforeImage={beforeImage}
-              afterImage={afterImage}
-              className="mb-6 rounded-lg overflow-hidden shadow-md border dark:border-gray-700"
-            />
+            // Fallback: Still show loading if somehow we got here without a generated image
+            <div className="relative mb-6 rounded-lg overflow-hidden shadow-md border dark:border-gray-700 bg-gray-100 dark:bg-gray-800 h-64">
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                <div className="bg-white/90 dark:bg-gray-800/90 rounded-lg p-4 shadow-lg max-w-xs w-full backdrop-blur-sm">
+                  <div className="flex items-center justify-center mb-3">
+                    <Loader2 className="h-8 w-8 animate-spin text-budget-accent" />
+                  </div>
+                  <p className="text-sm text-center font-medium text-gray-700 dark:text-gray-300">
+                    {hasGeneratedImage && afterImage === beforeImage 
+                      ? "Generated image is being processed..." 
+                      : "Waiting for generated image..."}
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
           
           <Accordion type="single" collapsible defaultValue="suggestions" className="mb-6 w-full bg-card p-4 sm:p-6 rounded-lg border dark:border-gray-700 shadow-sm">

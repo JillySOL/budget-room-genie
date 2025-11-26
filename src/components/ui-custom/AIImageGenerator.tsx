@@ -46,8 +46,8 @@ const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) => {
         onImageGenerated(demoImage);
       }
     } catch (err) {
-      setError("Failed to generate image. Please try again.");
-      console.error("Image generation error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to generate image. Please try again.";
+      setError(errorMessage);
     } finally {
       setIsGenerating(false);
     }

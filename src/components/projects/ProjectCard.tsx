@@ -6,23 +6,28 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
 // Update Project interface to expect thumbnailUrl
+// createdAt and updatedAt can be string, Date, or Firestore Timestamp
 export interface Project {
   id: string;
-  title: string;
+  title?: string;
+  projectName?: string; // Alternative field name
   userId: string; // Included for completeness, though not directly used in card
   roomType: string;
-  budget: number; // Included for completeness
-  style: string; // Included for completeness
-  renovationType: string; // Included for completeness
+  budget?: number | string; // Included for completeness
+  style?: string; // Included for completeness
+  renovationType?: string; // Included for completeness
   instructions?: string; // Included for completeness
-  beforeImageKey: string;
+  beforeImageKey?: string;
   afterImageKey?: string;
-  diySuggestions: Array<{ id: string; title: string; description: string; cost: number }>; // Included for completeness
-  createdAt: string;
-  updatedAt: string; // Included for completeness
-  status: 'PENDING' | 'COMPLETE' | 'FAILED'; // Included for completeness
-  totalCost: number;
-  thumbnailUrl: string; // Added pre-signed URL field
+  diySuggestions?: Array<{ id: string; title: string; description: string; cost: number }>; // Included for completeness
+  createdAt: string | Date | any; // Can be string, Date, or Firestore Timestamp
+  updatedAt?: string | Date | any; // Included for completeness
+  status?: 'PENDING' | 'COMPLETE' | 'FAILED' | 'processing' | 'completed' | 'failed' | string; // Included for completeness
+  aiStatus?: 'pending' | 'processing' | 'completed' | 'failed' | string;
+  totalCost?: number;
+  aiTotalEstimatedCost?: number;
+  thumbnailUrl?: string; // Added pre-signed URL field
+  uploadedImageURL?: string; // Alternative field name
 }
 
 interface ProjectCardProps {
@@ -32,21 +37,57 @@ interface ProjectCardProps {
 // Remove s3BaseUrl if no longer needed for direct construction
 // const s3BaseUrl = import.meta.env.VITE_S3_BASE_URL || '';
 
+// Helper function to safely convert Firestore Timestamp or string to Date
+const toDate = (dateValue: any): Date => {
+  if (!dateValue) return new Date();
+  
+  // If it's a Firestore Timestamp, convert it
+  if (dateValue && typeof dateValue.toDate === 'function') {
+    return dateValue.toDate();
+  }
+  
+  // If it's a Firestore Timestamp with toMillis
+  if (dateValue && typeof dateValue.toMillis === 'function') {
+    return new Date(dateValue.toMillis());
+  }
+  
+  // If it's already a Date
+  if (dateValue instanceof Date) {
+    return dateValue;
+  }
+  
+  // If it's a string or number, try to parse it
+  try {
+    return new Date(dateValue);
+  } catch {
+    return new Date();
+  }
+};
+
 export function ProjectCard({ project }: ProjectCardProps) {
   // Calculate time since creation (kept for potential future use, not displayed in new design)
   let timeAgo = "just now";
   try {
-    timeAgo = formatDistance(
-      new Date(project.createdAt),
-      new Date(),
-      { addSuffix: true }
-    );
+    const createdDate = toDate(project.createdAt);
+    if (createdDate && !isNaN(createdDate.getTime())) {
+      timeAgo = formatDistance(createdDate, new Date(), { addSuffix: true });
+    }
   } catch (e) {
-    console.error("Error formatting date:", project.createdAt, e);
+    // Fallback to "just now" if date formatting fails
+    timeAgo = "just now";
   }
 
-  // Use the pre-signed thumbnailUrl directly
-  const imageUrl = project.thumbnailUrl || '/placeholder-image.png'; // Use provided URL or fallback
+  // Use the pre-signed thumbnailUrl directly, or fallback to uploadedImageURL
+  const imageUrl = project.thumbnailUrl || project.uploadedImageURL || '/placeholder-image.png';
+  
+  // Get title from either title or projectName field
+  const displayTitle = project.title || project.projectName || 'Untitled Project';
+  
+  // Get status from either status or aiStatus field
+  const displayStatus = project.status || project.aiStatus || 'PENDING';
+  
+  // Get total cost from either totalCost or aiTotalEstimatedCost
+  const displayCost = project.totalCost ?? project.aiTotalEstimatedCost ?? 0;
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
      e.currentTarget.src = '/placeholder-image.png';
@@ -54,58 +95,56 @@ export function ProjectCard({ project }: ProjectCardProps) {
   };
 
   // Placeholder progress - 100% if complete, 50% otherwise
-  const progressPercent = project.status === 'COMPLETE' ? 100 : 50;
+  const progressPercent = (displayStatus === 'COMPLETE' || displayStatus === 'completed') ? 100 : 50;
 
   // Determine status badge variant
   const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
-    switch (status.toUpperCase()) {
-      case 'COMPLETE': return 'default';
-      case 'FAILED': return 'destructive';
-      case 'PENDING':
-      default: return 'secondary';
-    }
+    const upperStatus = status.toUpperCase();
+    if (upperStatus === 'COMPLETE' || upperStatus === 'COMPLETED') return 'default';
+    if (upperStatus === 'FAILED' || upperStatus === 'FAILURE') return 'destructive';
+    return 'secondary';
   };
 
   return (
     <Link to={`/project/${project.id}`} className="flex flex-col h-full">
-      <Card className="overflow-hidden transition-all hover:shadow-lg flex-1 flex flex-col group">
-        <div className="relative h-48 w-full overflow-hidden bg-muted">
+      <Card className="overflow-hidden transition-all hover:shadow-lg flex-1 flex flex-col group border-border/50">
+        <div className="relative aspect-video w-full overflow-hidden bg-muted">
           <img
             src={imageUrl}
-            alt={project.title || 'Project image'}
+            alt={displayTitle}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={handleImageError}
             loading="lazy"
           />
           <Badge 
-            variant={getStatusVariant(project.status)} 
-            className="absolute top-2 right-2 capitalize"
+            variant={getStatusVariant(displayStatus)} 
+            className="absolute top-2 right-2 capitalize text-xs font-medium shadow-sm"
           >
-            {project.status.toLowerCase()}
+            {displayStatus.toLowerCase()}
           </Badge>
           <Badge 
             variant="outline" 
-            className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm"
+            className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm text-xs font-medium shadow-sm"
           >
-            {project.roomType}
+            {project.roomType || 'Room'}
           </Badge>
         </div>
-        <CardContent className="p-4 flex-1 flex flex-col justify-between">
-          <div>
-            <h3 className="font-semibold text-lg truncate mb-2 group-hover:text-budget-accent transition-colors" title={project.title}>
-              {project.title || 'Untitled Project'}
+        <CardContent className="p-4 flex-1 flex flex-col justify-between gap-3">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-base leading-tight line-clamp-2 group-hover:text-budget-accent transition-colors" title={displayTitle}>
+              {displayTitle}
             </h3>
-            <p className="text-xs sm:text-sm text-muted-foreground mb-1.5 sm:mb-2">
-               Est. DIY Cost: ${project.totalCost != null ? project.totalCost.toFixed(0) : 'N/A'}
+            <p className="text-sm text-muted-foreground font-medium">
+              Est. DIY Cost: <span className="text-foreground">${displayCost != null ? Number(displayCost).toLocaleString() : 'N/A'}</span>
             </p>
           </div>
           
-          <div className="mt-3">
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Progress</span>
-              <span>{progressPercent}%</span>
+          <div className="space-y-1.5 pt-1 border-t border-border/50">
+            <div className="flex justify-between items-center text-xs text-muted-foreground">
+              <span className="font-medium">Progress</span>
+              <span className="font-semibold">{progressPercent}%</span>
             </div>
-            <Progress value={progressPercent} className="h-1.5" />
+            <Progress value={progressPercent} className="h-2" />
           </div>
         </CardContent>
       </Card>

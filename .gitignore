@@ -17,6 +17,7 @@ cdk.out/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
 
 # Logs
 npm-debug.log*
@@ -60,10 +61,20 @@ cdk.out/
 logs
 *.log
 dev-debug.log
+*-debug.log
+database-debug.log
+firestore-debug.log
+pubsub-debug.log
+
 # Dependency directories
 .idea
 .vscode
+
 # OS specific
+
 # Task files
 tasks.json
-tasks/ 
+tasks/
+
+# Firebase emulator configs (if not needed)
+apphosting.emulator.yaml 

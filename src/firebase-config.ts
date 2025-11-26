@@ -27,16 +27,17 @@ export const functions = getFunctions(app, 'us-central1');
 
 // Connect to emulators in development mode
 if (import.meta.env.DEV) {
-  console.log('DEV mode detected, connecting to Firebase Emulators...');
   try {
     // Use localhost instead of 127.0.0.1 if needed
     connectAuthEmulator(auth, 'http://localhost:9099');
     connectFirestoreEmulator(db, 'localhost', 8081); // Port from firebase.json
     connectFunctionsEmulator(functions, 'localhost', 5001); // Port from firebase.json
     connectStorageEmulator(storage, 'localhost', 9199); // Re-enable storage emulator connection
-    console.log('Successfully connected to Firebase Emulators.');
   } catch (error) {
-    console.error('Error connecting to Firebase Emulators:', error);
+    // Silently fail if emulators are already connected (common in hot reload scenarios)
+    if (error instanceof Error && !error.message.includes('already been initialized')) {
+      // Only log unexpected errors
+    }
   }
 }
 

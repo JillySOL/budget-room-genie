@@ -10,58 +10,18 @@
 import {onRequest, onCall} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import fetch from "node-fetch";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import axios from "axios";
 import { FieldValue } from "firebase-admin/firestore";
-import OpenAI from 'openai';
-// Remove functions sdk import - no longer needed
-// import * as functions from "firebase-functions"; 
-// Add Secret Manager Client
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
-// Remove Readable import, not needed now
-// import { Readable } from 'stream';
-import * as fsPromises from 'fs/promises'; // Use promises for async operations
-import * as fs from 'fs'; // Import standard fs for createReadStream
-import * as path from 'path';
-import * as os from 'os';
-import sharp from 'sharp'; // Import sharp
-import FormData from 'form-data'; // Import form-data library
+import sharp from 'sharp';
 
-import { getOpenAIApiKey } from './services/openai';
+import { getNanoBananaApiKey, generateImageWithNanoBanana } from './services/nanobanana';
 import { canUserGenerateDesign, getUserSubscription, subscriptionPlans, SubscriptionPlanType } from './services/subscriptions';
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 const db = admin.firestore();
 
-// Remove global OpenAI Client Initialization
-/*
-// --- Initialize OpenAI Client ---
-// Ensure OPENAI_API_KEY is set in function environment variables
-logger.info("Attempting to initialize OpenAI client...");
-logger.info(`OPENAI_API_KEY value: ${process.env.OPENAI_API_KEY ? 'Exists and has value' : 'MISSING or EMPTY'}`); // Log existence, not the key itself
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, 
-});
-logger.info("OpenAI client initialized (or attempted).");
-// --- End OpenAI Client Init ---
-*/
-
-// Helper function to download image and encode as base64
-async function downloadImageAndEncode(url: string): Promise<{ data: string; mimeType: string }> {
-    try {
-        const response = await axios.get(url, {
-            responseType: 'arraybuffer'
-        });
-        const mimeType = response.headers['content-type'] || 'image/png'; // Default to png if type unknown
-        const data = Buffer.from(response.data, 'binary').toString('base64');
-        return { data, mimeType };
-    } catch (error) {
-        logger.error("Error downloading image:", error);
-        throw new Error("Failed to download image for processing.");
-    }
-}
+// Removed downloadImageAndEncode - no longer needed, NanoBanana Pro accepts URLs directly
 
 // Generate renovation suggestions based on room type
 function generateSuggestionsByRoomType(roomType: string, budget: string, style: string): {
@@ -260,126 +220,18 @@ function generateSuggestionsByRoomType(roomType: string, budget: string, style: 
 
 // --- Helper Functions ---
 
-// Fetches the OpenAI API key from Secret Manager
-async function getOpenApiKey(): Promise<string> {
+// Fetches the NanoBanana API key from Secret Manager
+async function getNanoBananaApiKeyFromSecret(): Promise<string> {
     try {
-        return await getOpenAIApiKey();
+        return await getNanoBananaApiKey();
     } catch (secretError) {
-        logger.error("Critical: Failed to retrieve OpenAI API key from Secret Manager:", secretError);
+        logger.error("Critical: Failed to retrieve NanoBanana API key from Secret Manager:", secretError);
         throw new Error("Failed to retrieve API credentials."); // Re-throw critical error
     }
 }
 
-// Downloads an image from a URL
-async function downloadImage(url: string): Promise<Buffer> {
-    logger.info(`Downloading image from: ${url}`);
-    try {
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
-        const imageBuffer = Buffer.from(response.data, 'binary');
-        logger.info(`Successfully downloaded image (size: ${imageBuffer.length} bytes)`);
-        return imageBuffer;
-    } catch (downloadError) {
-        logger.error(`Failed to download image from ${url}:`, downloadError);
-        throw new Error(`Failed to download image: ${url}`);
-    }
-}
-
-// Processes the image buffer: ensures alpha channel and converts to PNG
-async function processImageForOpenAI(imageBuffer: Buffer): Promise<{ pngBuffer: Buffer, metadata: sharp.Metadata }> {
-    try {
-        logger.info('Processing image for OpenAI...');
-        const imageSharp = sharp(imageBuffer);
-        const metadata = await imageSharp.metadata();
-        logger.info(`Original image info: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);
-
-        // Ensure Alpha channel for transparency (required by edit endpoint if no mask)
-        const pngBuffer = await imageSharp.ensureAlpha().png().toBuffer();
-        logger.info(`Successfully processed image to PNG w/alpha (size: ${pngBuffer.length} bytes)`);
-        return { pngBuffer, metadata };
-    } catch (sharpError) {
-        logger.error('Error processing image with sharp:', sharpError);
-        throw new Error('Failed to process input image to required PNG format.');
-    }
-}
-
-// Calls the OpenAI image edit API
-async function callOpenAIEditApi(
-    apiKey: string,
-    prompt: string,
-    imageBuffer: Buffer,
-    imageMetadata: sharp.Metadata // Pass metadata for logging
-): Promise<{
-    data?: Array<{
-        url?: string;
-        b64_json?: string;
-    }>;
-    error?: {
-        message: string;
-        type: string;
-        code: string;
-    };
-}> {
-    const tempDir = os.tmpdir();
-    // Use a more unique temp file name (though still might collide in high concurrency)
-    const tempFileName = `openai_edit_input_${process.pid}_${Date.now()}.png`;
-    const tempFilePath = path.join(tempDir, tempFileName);
-
-    try {
-        // Save buffer to temp file to use with FormData
-        await fsPromises.writeFile(tempFilePath, imageBuffer);
-        logger.info(`Processed image saved to temporary file: ${tempFilePath}`);
-
-        // Construct FormData
-        const formData = new FormData();
-        formData.append('prompt', prompt);
-        formData.append('model', 'gpt-image-1'); // Explicitly set model
-        formData.append('image', fs.createReadStream(tempFilePath), { // Stream from temp file
-            filename: 'input.png', // Generic filename for API
-            contentType: 'image/png',
-        });
-        // Optional: Add 'n' or 'size' if needed
-
-        // Pre-flight Logging
-        logger.info(`Prompt length: ${prompt.length} characters`);
-        logger.info(`Image buffer size being sent: ${imageBuffer.length} bytes`);
-        logger.info(`Image dimensions being sent: ${imageMetadata.width}x${imageMetadata.height}`);
-        logger.info('Constructed FormData for OpenAI edit request.');
-
-        // Execute fetch request
-        const apiEndpoint = 'https://api.openai.com/v1/images/edits';
-        const fetchOptions = {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                // Content-Type set automatically by fetch for FormData
-            },
-            body: formData,
-        };
-
-        logger.info(`Sending manual request to ${apiEndpoint}`);
-        const fetchResponse = await fetch(apiEndpoint, fetchOptions);
-        const responseBody = await fetchResponse.json(); // Try parsing JSON always
-
-        if (!fetchResponse.ok) {
-            logger.error(`OpenAI API request failed with status ${fetchResponse.status}:`, JSON.stringify(responseBody));
-            const message = responseBody?.error?.message || fetchResponse.statusText;
-            throw new Error(`OpenAI API Error (${fetchResponse.status}): ${message}`);
-        }
-
-        logger.info('Received successful response from manual OpenAI fetch request.');
-        return responseBody;
-
-    } finally {
-        // Clean up temporary file
-        try {
-            await fsPromises.unlink(tempFilePath);
-            logger.info(`Successfully deleted temporary file: ${tempFilePath}`);
-        } catch (cleanupError) {
-            // Log cleanup error but don't fail the function for this
-            logger.warn(`Failed to delete temporary file ${tempFilePath}:`, cleanupError);
-        }
-    }
-}
+// Removed downloadImage, processImageForNanoBanana, and uploadImageForNanoBanana
+// NanoBanana Pro accepts image URLs directly - no need to download/re-upload
 
 
 // Uploads the generated image buffer to Firebase Storage
@@ -390,22 +242,59 @@ async function uploadGeneratedImageToStorage(
     try {
         const mimeType = 'image/png'; // We know it's PNG after processing
         const finalFileName = `generated-images/${projectId}/${Date.now()}.png`;
-        const imageStorageRef = admin.storage().bucket().file(finalFileName);
+        
+        // Get the default Firebase Storage bucket
+        const bucket = admin.storage().bucket();
+        const imageStorageRef = bucket.file(finalFileName);
 
-        logger.info(`Uploading generated image to GCS: ${finalFileName}`);
+        logger.info(`Uploading generated image to Firebase Storage: ${finalFileName}`);
+        logger.info(`Bucket name: ${bucket.name}`);
+        
+        // Upload the file
+        // With uniform bucket-level access, we cannot use ACLs (public: true, makePublic)
+        // Access is controlled by IAM policies and Storage Rules only
         await imageStorageRef.save(imageBuffer, {
-            metadata: { contentType: mimeType }
+            metadata: { 
+                contentType: mimeType,
+                cacheControl: 'public, max-age=31536000' // Cache for 1 year
+            }
+            // DO NOT use public: true - it's not compatible with uniform bucket-level access
         });
-
-        const [url] = await imageStorageRef.getSignedUrl({
-            action: 'read',
-            expires: '03-01-2500' // Far future expiration
+        
+        // Construct the public URL directly
+        // With uniform bucket-level access + Storage Rules allowing public read,
+        // we can use the Firebase Storage public URL format
+        // Format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media
+        const bucketName = bucket.name;
+        // Convert bucket name to Firebase Storage URL format if needed
+        const urlBucketName = bucketName.includes('.firebasestorage.app') 
+            ? bucketName 
+            : bucketName.replace('.appspot.com', '.firebasestorage.app');
+        
+        // Properly encode the file path for uniform bucket-level access
+        // Each path segment must be encoded separately, then joined with %2F
+        const encodedPath = finalFileName.split('/').map(segment => encodeURIComponent(segment)).join('%2F');
+        const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${urlBucketName}/o/${encodedPath}?alt=media`;
+        
+        logger.info(`Generated image saved to Firebase Storage`);
+        logger.info(`File path: ${finalFileName}`);
+        logger.info(`Bucket name: ${bucket.name}`);
+        logger.info(`Firebase Storage public URL: ${publicUrl}`);
+        logger.info(`Image buffer size: ${imageBuffer.length} bytes`);
+        
+        // Verify the URL is different from any input URLs
+        logger.info(`Returning Firebase Storage public URL for aiGeneratedImageURL field`);
+        
+        return publicUrl;
+    } catch (uploadError: any) {
+        logger.error(`Failed to upload generated image to storage for project ${projectId}`);
+        logger.error("Upload error details:", {
+            message: uploadError?.message,
+            code: uploadError?.code,
+            status: uploadError?.status,
+            stack: uploadError?.stack
         });
-        logger.info(`Generated image saved to Firebase Storage: ${url}`);
-        return url;
-    } catch (uploadError) {
-        logger.error(`Failed to upload generated image to storage for project ${projectId}:`, uploadError);
-        throw new Error("Failed to save generated image.");
+        throw new Error(`Failed to save generated image: ${uploadError?.message || 'Unknown error'}`);
     }
 }
 
@@ -427,11 +316,18 @@ async function updateUserSubscription(userId: string, planId: SubscriptionPlanTy
 }
 
 // --- Main Cloud Function Trigger ---
-export const generateRenovationSuggestions = onDocumentCreated("projects/{projectId}", async (event: {
-    data?: FirebaseFirestore.DocumentSnapshot;
-    id: string;
-    params: {[key: string]: string};
-}) => {
+export const generateRenovationSuggestions = onDocumentCreated(
+    {
+        document: "projects/{projectId}",
+        maxInstances: 10,
+        timeoutSeconds: 540, // 9 minutes (max for 2nd gen functions)
+        memory: "1GiB",
+    },
+    async (event: {
+        data?: FirebaseFirestore.DocumentSnapshot;
+        id: string;
+        params: {[key: string]: string};
+    }) => {
     const snapshot = event.data;
     if (!snapshot) {
         logger.error("No data associated with the event");
@@ -457,7 +353,7 @@ export const generateRenovationSuggestions = onDocumentCreated("projects/{projec
     let apiKey: string;
     try {
         // --- Get API Key ---
-        apiKey = await getOpenApiKey(); // Get key early
+        apiKey = await getNanoBananaApiKeyFromSecret(); // Get NanoBanana key
 
         // --- Extract Data & Generate Suggestions ---
         const imageUrl = projectData.uploadedImageURL as string;
@@ -480,55 +376,122 @@ export const generateRenovationSuggestions = onDocumentCreated("projects/{projec
         logger.info("Updated Firestore: processing started.");
 
         // --- Image Generation Steps ---
-        const userImageBuffer = await downloadImage(imageUrl);
-        const { pngBuffer: processedPngBuffer, metadata: imageMetadata } = await processImageForOpenAI(userImageBuffer);
+        // NanoBanana Pro accepts image URLs directly - no need to download/re-upload
+        // Use the Firebase Storage URL directly (it's already publicly accessible)
+        const publicImageUrl = imageUrl;
+        logger.info(`Using Firebase Storage URL directly for NanoBanana Pro: ${publicImageUrl}`);
 
-        const generationPrompt = `Edit the provided image applying the following renovation:
-Room: ${roomType}
-Style: ${style}
-Budget: ${budget}
-Description: ${analysisResult.afterImageDescription}
+        // Enhanced prompt engineering with all user parameters
+        const generationPrompt = `You are a professional interior designer. Edit the provided room image to show a renovated version based on these specifications:
 
-Constraints: Maintain original camera angle, lighting, room structure. Only modify elements consistent with the description and budget (${style}, ${budget}). Result must be photorealistic.`;
+ROOM TYPE: ${roomType}
+DESIGN STYLE: ${style}
+BUDGET LEVEL: ${budget}
+
+RENOVATION DESCRIPTION:
+${analysisResult.afterImageDescription}
+
+CRITICAL REQUIREMENTS:
+1. Maintain the EXACT same camera angle, perspective, and room structure as the original image
+2. Keep the same lighting conditions and natural light sources
+3. Only modify design elements (paint, fixtures, furniture, décor) - do NOT change room dimensions or layout
+4. Apply the ${style} design style consistently throughout
+5. Ensure all changes are realistic and achievable within a ${budget} budget
+6. The result must be photorealistic and look like a real photograph
+7. Preserve the original room's architectural features (windows, doors, structural elements)
+8. Make the renovation look natural and cohesive, as if it was professionally done
+
+Focus on: ${style.toLowerCase()} aesthetic elements, appropriate materials for ${budget} budget, and maintaining the room's original character while updating it to match the ${style} style.`;
+        
+        // Log the complete prompt for debugging
+        logger.info("=== GENERATION PROMPT ===");
+        logger.info(generationPrompt);
+        logger.info("=== END PROMPT ===");
+        logger.info("Prompt details:", {
+            roomType,
+            style,
+            budget,
+            afterImageDescription: analysisResult.afterImageDescription,
+            promptLength: generationPrompt.length
+        });
         
         // --- Update Firestore: Generating Image ---
-        // (Optional, but good feedback if frontend polls)
-         await projectRef.update({ aiStatus: "generating_image" }); 
-         logger.info("Updated Firestore: generating image.");
+        await projectRef.update({ aiStatus: "generating_image" }); 
+        logger.info("Updated Firestore: generating image.");
 
-        const openAIResponse = await callOpenAIEditApi(apiKey, generationPrompt, processedPngBuffer, imageMetadata);
-
-        // --- Process OpenAI Response ---
-        let finalImageUrl: string;
-        if (openAIResponse?.data?.[0]?.url) {
-            const generatedUrl = openAIResponse.data[0].url;
-            logger.info(`Received OpenAI response URL: ${generatedUrl}`);
-            const finalImageBuffer = await downloadImage(generatedUrl); // Download the result
-            finalImageUrl = await uploadGeneratedImageToStorage(projectId, finalImageBuffer);
-        } else if (openAIResponse?.data?.[0]?.b64_json) {
-            logger.info(`Received OpenAI response Base64`);
-            const finalImageBuffer = Buffer.from(openAIResponse.data[0].b64_json, 'base64');
-            finalImageUrl = await uploadGeneratedImageToStorage(projectId, finalImageBuffer);
-        } else {
-            logger.error("OpenAI response missing expected image data (url or b64_json)", { response: JSON.stringify(openAIResponse) });
-            throw new Error("Parsed OpenAI response did not contain the expected image data format.");
+        // Generate image using Gemini (Nano Banana) API
+        // Gemini API returns base64 encoded image data directly (no polling needed)
+        logger.info("Calling Gemini (Nano Banana) API to generate edited image...");
+        logger.info("API Key available:", !!apiKey);
+        logger.info("Public image URL:", publicImageUrl);
+        
+        let generatedImageBase64: string;
+        try {
+            generatedImageBase64 = await generateImageWithNanoBanana(apiKey, generationPrompt, publicImageUrl);
+            logger.info(`✅ Gemini API image generation completed. Image data length: ${generatedImageBase64.length} characters (base64)`);
+        } catch (nanobananaError: any) {
+            logger.error("❌ ERROR in generateImageWithNanoBanana:", {
+                error: nanobananaError,
+                message: nanobananaError?.message,
+                stack: nanobananaError?.stack,
+                apiKeyLength: apiKey?.length,
+                promptLength: generationPrompt.length,
+                imageUrl: publicImageUrl
+            });
+            throw nanobananaError; // Re-throw to be caught by outer try-catch
         }
 
+        // Convert base64 image data to Buffer and upload to Firebase Storage
+        const finalImageBuffer = Buffer.from(generatedImageBase64, 'base64');
+        logger.info(`Converted base64 to buffer: ${finalImageBuffer.length} bytes`);
+        const finalImageUrl = await uploadGeneratedImageToStorage(projectId, finalImageBuffer);
+
         // --- Final Firestore Update: Success ---
+        // Log the URLs before saving to verify they're different
+        logger.info(`About to save aiGeneratedImageURL to Firestore:`, {
+            projectId,
+            uploadedImageURL: projectData.uploadedImageURL,
+            aiGeneratedImageURL: finalImageUrl,
+            urlsAreDifferent: projectData.uploadedImageURL !== finalImageUrl,
+            finalImageUrlLength: finalImageUrl.length,
+            uploadedImageUrlLength: projectData.uploadedImageURL?.length || 0
+        });
+        
         await projectRef.update({
             aiStatus: "completed",
             aiGeneratedImageURL: finalImageUrl,
             aiError: null,
             aiProcessedAt: FieldValue.serverTimestamp(), // Update timestamp again
         });
-        logger.info(`Successfully processed project ${projectId} and updated Firestore.`);
+        
+        // Verify the update was successful
+        const verifyDoc = await projectRef.get();
+        const verifyData = verifyDoc.data();
+        logger.info(`Firestore update verified. aiGeneratedImageURL is now:`, {
+            saved: verifyData?.aiGeneratedImageURL,
+            matchesExpected: verifyData?.aiGeneratedImageURL === finalImageUrl,
+            aiStatus: verifyData?.aiStatus
+        });
+        
+        logger.info(`Successfully processed project ${projectId} and updated Firestore with generated image URL.`);
 
-    } catch (error) {
-        logger.error(`Error processing project ${projectId}:`, error);
+    } catch (error: any) {
+        logger.error(`❌ ERROR processing project ${projectId}:`);
+        logger.error("Error type:", error?.constructor?.name);
+        logger.error("Error message:", error?.message);
+        logger.error("Error stack:", error?.stack);
+        if (error?.response) {
+            logger.error("Error response:", error.response);
+        }
+        if (error?.config) {
+            logger.error("Error config:", error.config);
+        }
+        
         // General error handling: update Firestore with failure status
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during AI processing.";
         await projectRef.update({
             aiStatus: "failed",
-            aiError: error instanceof Error ? error.message : "An unknown error occurred during AI processing.",
+            aiError: errorMessage,
             aiProcessedAt: FieldValue.serverTimestamp(),
         }).catch(updateError => {
             logger.error(`Failed to update project ${projectId} with error status:`, updateError);
@@ -596,5 +559,87 @@ export const updateSubscription = onCall({
   } catch (error) {
     logger.error(`Error updating subscription for user ${userId}:`, error);
     throw new Error("Failed to update subscription");
+  }
+});
+
+// HTTP callable function to fix image URL for existing projects
+export const fixImageUrl = onCall(async (request) => {
+  const projectId = request.data?.projectId;
+  
+  if (!projectId) {
+    throw new Error('Project ID is required');
+  }
+  
+  try {
+    logger.info(`Fixing image URL for project: ${projectId}`);
+    
+    // Get the project document
+    const projectRef = db.collection('projects').doc(projectId);
+    const projectDoc = await projectRef.get();
+    
+    if (!projectDoc.exists) {
+      throw new Error(`Project ${projectId} not found`);
+    }
+    
+    const projectData = projectDoc.data();
+    const currentUrl = projectData?.aiGeneratedImageURL;
+    
+    if (!currentUrl) {
+      throw new Error(`No aiGeneratedImageURL found for project ${projectId}`);
+    }
+    
+    logger.info(`Current URL: ${currentUrl}`);
+    
+    // Extract the file path from the URL
+    // URL format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media
+    const urlMatch = currentUrl.match(/\/o\/(.+?)(\?|$)/);
+    if (!urlMatch) {
+      throw new Error(`Could not parse file path from URL`);
+    }
+    
+    const filePath = decodeURIComponent(urlMatch[1]);
+    logger.info(`File path: ${filePath}`);
+    
+    // Get the file reference
+    const storageBucket = admin.storage().bucket();
+    const fileRef = storageBucket.file(filePath);
+    
+    // Check if file exists
+    const [exists] = await fileRef.exists();
+    if (!exists) {
+      logger.error(`File does not exist at path: ${filePath}`);
+      throw new Error(`File does not exist. The image may not have been uploaded correctly.`);
+    }
+    
+    logger.info(`✅ File exists`);
+    
+    // With uniform bucket-level access, we cannot use makePublic()
+    // Access is controlled by IAM policies and Storage Rules only
+    // Since Storage Rules allow public read for generated-images, we can construct the URL directly
+    
+    // Construct the public URL directly
+    // Format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media
+    const bucketName = storageBucket.name;
+    const urlBucketName = bucketName.includes('.firebasestorage.app') 
+        ? bucketName 
+        : bucketName.replace('.appspot.com', '.firebasestorage.app');
+    
+    // Properly encode the file path for uniform bucket-level access
+    const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('%2F');
+    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${urlBucketName}/o/${encodedPath}?alt=media`;
+    
+    logger.info(`✅ Generated public URL: ${publicUrl}`);
+    
+    // Update Firestore
+    await projectRef.update({
+      aiGeneratedImageURL: publicUrl
+    });
+    
+    logger.info(`✅ Updated Firestore with new URL`);
+    
+    return { success: true, newUrl: publicUrl };
+  } catch (error: any) {
+    logger.error(`Error fixing image URL: ${error.message}`);
+    throw error;
   }
 });

@@ -81,7 +81,7 @@ const OnboardingPage = () => {
         const querySnapshot = await getDocs(q);
         setExistingProjects(querySnapshot.docs);
       } catch (err) {         
-        console.error("Error fetching existing projects:", err);
+        // Silently handle fetch errors
         sonnerToast.error("Failed to load existing photos.");
       } finally {
         setLoadingProjects(false);
@@ -93,7 +93,6 @@ const OnboardingPage = () => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    console.log("File selected:", file);
     if (file) {
       setSelectedFile(file);
       setSelectedExistingImageUrl(null);
@@ -119,22 +118,18 @@ const OnboardingPage = () => {
   };
 
   const handleSaveProject = async () => {
-    console.log("handleSaveProject called");
-
     let finalImageSource: string | File | null = null;
     if (selectedFile) {
       finalImageSource = selectedFile;
     } else if (selectedExistingImageUrl) {
       finalImageSource = selectedExistingImageUrl;
     } else {
-      console.error("Save aborted: No image selected.");
       sonnerToast.error("Please select or upload an image.");
       setSubmissionError("An image is required to create the project.");
       return;
     }
 
     if (!currentUser) {
-      console.error("Save aborted: User is not logged in, but should be.");
       sonnerToast.error("You must be logged in to create a project. Redirecting to login.");
       setSubmissionError("Authentication error. Please log in again.");
       navigate("/login");
@@ -147,17 +142,14 @@ const OnboardingPage = () => {
     try {
       let finalImageURL: string | null = null;
       if (finalImageSource instanceof File) {
-        console.log("Proceeding with upload...");
         sonnerToast.info("Uploading image...");
         const fileExtension = finalImageSource.name.split('.').pop();
         const uniqueFilename = `${uuidv4()}.${fileExtension}`;
         const storageRef = ref(storage, `user-uploads/${currentUser.uid}/${uniqueFilename}`);
         await uploadBytes(storageRef, finalImageSource);
         finalImageURL = await getDownloadURL(storageRef);
-        console.log("Upload successful, URL:", finalImageURL);
       } else {
          finalImageURL = finalImageSource;
-         console.log("Using existing image URL:", finalImageURL);
       }
 
       if (!finalImageURL) {
@@ -172,30 +164,24 @@ const OnboardingPage = () => {
         createdAt: serverTimestamp(),
         projectName: `${userData.style || 'My'} ${userData.roomType || 'Room'} Project`,
       };
-      console.log("Saving project data to Firestore:", projectData);
 
       const docRef = await addDoc(collection(db, "projects"), projectData);
-      console.log("Document written with ID: ", docRef.id);
       sonnerToast.success("Project created successfully!");
       navigate(`/project/${docRef.id}`);
 
     } catch (error) {
-      console.error("Error creating project:", error);
       const errorMsg = error instanceof Error ? error.message : "Failed to create project. Please try again.";
       setSubmissionError(errorMsg);
       sonnerToast.error(errorMsg);
     } finally {
-      console.log("Setting isUploading to false");
       setIsUploading(false);
     }
   };
 
   const handleNextStep = () => {
-    console.log(`handleNextStep called, currentStep: ${currentStep}, TOTAL_STEPS: ${TOTAL_STEPS}`);
     if (currentStep < TOTAL_STEPS) {
       setCurrentStep(currentStep + 1);
     } else {
-      console.log("Final step reached, calling handleSaveProject...");
       handleSaveProject();
     }
   };

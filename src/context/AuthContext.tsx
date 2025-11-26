@@ -38,10 +38,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
   };
 
-  // Render children only when not loading
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 } 

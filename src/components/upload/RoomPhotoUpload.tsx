@@ -36,7 +36,6 @@ export function RoomPhotoUpload(_props: RoomPhotoUploadProps) {
   useEffect(() => {
     const requiredEnvVars = {
       'API Endpoint': import.meta.env.VITE_API_ENDPOINT,
-      'Clerk Key': import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
     };
 
     const missingVars = Object.entries(requiredEnvVars)
@@ -44,7 +43,6 @@ export function RoomPhotoUpload(_props: RoomPhotoUploadProps) {
       .map(([key]) => key);
 
     if (missingVars.length > 0) {
-      console.error('Missing required environment variables:', missingVars);
       setIsConfigValid(false);
       setError(`Missing configuration: ${missingVars.join(', ')}`);
     }
@@ -169,7 +167,7 @@ export function RoomPhotoUpload(_props: RoomPhotoUploadProps) {
       setUploadProgress(100);
       
     } catch (err) {
-      console.error('Upload error:', err);
+      // Error handled by toast notification
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
       toast.error('Failed to upload photo');
     } finally {

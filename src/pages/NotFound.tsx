@@ -9,12 +9,7 @@ import { Home } from "lucide-react";
 const NotFound = () => {
   const location = useLocation();
 
-  useEffect(() => {
-    console.error(
-      "404 Error: User attempted to access non-existent route:",
-      location.pathname
-    );
-  }, [location.pathname]);
+  // 404 page - no need to log every 404 as it's expected behavior
 
   return (
     <PageContainer className="flex flex-col items-center justify-center">

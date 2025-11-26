@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth } from "@/context/AuthContext";
+import { auth } from "@/firebase-config";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -12,7 +13,7 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { getToken } = useAuth();
+  const { currentUser } = useAuth();
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -41,11 +42,11 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
   const handleUpload = async (file: File) => {
     setIsUploading(true);
     try {
-      // Get the JWT token from Clerk
-      const token = await getToken();
-      if (!token) {
+      // Get the Firebase ID token
+      if (!currentUser) {
         throw new Error('Authentication required');
       }
+      const token = await currentUser.getIdToken();
 
       // Step 1: Get pre-signed URL from API Gateway
       const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/generate-upload-url`, {
@@ -121,8 +122,8 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
       }, 2000); // Poll every 2 seconds
 
     } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload image. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload image. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setIsUploading(false);
     }

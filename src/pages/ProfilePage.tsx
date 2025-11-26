@@ -18,8 +18,8 @@ const ProfilePage = () => {
       navigate("/");
       sonnerToast.success("Logged out successfully");
     } catch (error) {
-      console.error("Logout failed:", error);
-      sonnerToast.error("Logout failed. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Logout failed. Please try again.";
+      sonnerToast.error(errorMessage);
     }
   };
 

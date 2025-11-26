@@ -23,7 +23,6 @@ const ProjectStatusPage = () => {
   
   useEffect(() => {
     if (!projectId) {
-      console.error("ProjectStatusPage: No projectId found in location state.");
       toast.error("Could not retrieve project details. Returning to new project page.");
       navigate('/new-project');
       return;

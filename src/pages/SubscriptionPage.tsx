@@ -34,7 +34,6 @@ const SubscriptionPage: React.FC = () => {
         const result = await checkUserSubscription();
         setSubscriptionData(result.data);
       } catch (error) {
-        console.error('Error fetching subscription data:', error);
         toast.error('Failed to load subscription information');
       } finally {
         setLoading(false);
@@ -75,8 +74,8 @@ const SubscriptionPage: React.FC = () => {
         toast.error(result.data.message || 'Failed to update subscription');
       }
     } catch (error) {
-      console.error('Error updating subscription:', error);
-      toast.error('Failed to update subscription');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update subscription';
+      toast.error(errorMessage);
     } finally {
       setUpdatingPlan(null);
     }

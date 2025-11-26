@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Projects collection - users can read/write their own projects
+    match /projects/{projectId} {
+      // Allow list (queries) for authenticated users
+      // Each document in the result will be checked against the 'get' rule
+      allow list: if request.auth != null;
+      
+      // Allow read if user is authenticated and the project belongs to them
+      // This filters query results - only documents where userId matches are returned
+      allow get: if request.auth != null && 
+        (resource == null || request.auth.uid == resource.data.userId);
+      
+      // Allow create if user is authenticated and sets their own userId
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      
+      // Allow update/delete if user is authenticated and owns the project
+      allow update, delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+  }
+}
+

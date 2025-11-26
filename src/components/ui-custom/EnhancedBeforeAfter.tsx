@@ -1,5 +1,5 @@
 import ReactCompareImage from "react-compare-image";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ArrowRight } from "lucide-react";
 
@@ -9,6 +9,7 @@ interface EnhancedBeforeAfterProps {
   className?: string;
   beforeLabel?: string;
   afterLabel?: string;
+  onLoadError?: () => void;
 }
 
 const EnhancedBeforeAfter = ({
@@ -16,21 +17,15 @@ const EnhancedBeforeAfter = ({
   afterImage,
   className = "",
   beforeLabel = "Before",
-  afterLabel = "After"
+  afterLabel = "After",
+  onLoadError
 }: EnhancedBeforeAfterProps) => {
   const [isHovering, setIsHovering] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
-  // Ensure image URLs are absolute
-  const beforeUrl = useMemo(() => {
-    if (beforeImage.startsWith('http')) return beforeImage;
-    return beforeImage;
-  }, [beforeImage]);
-  
-  const afterUrl = useMemo(() => {
-    if (afterImage.startsWith('http')) return afterImage;
-    return afterImage;
-  }, [afterImage]);
+  // Use image URLs directly
+  const beforeUrl = beforeImage;
+  const afterUrl = afterImage;
 
   // Use image preloading to detect errors
   useEffect(() => {
@@ -40,12 +35,40 @@ const EnhancedBeforeAfter = ({
     const preloadImages = () => {
       const preloadBefore = new Image();
       const preloadAfter = new Image();
+      let beforeLoaded = false;
+      let afterLoaded = false;
+      let beforeError = false;
+      let afterError = false;
+      
+      const checkComplete = () => {
+        if (beforeError || afterError) {
+          setLoadError(true);
+          if (onLoadError && (beforeError || afterError)) {
+            onLoadError();
+          }
+        }
+      };
+      
+      preloadBefore.onload = () => {
+        beforeLoaded = true;
+      };
+      
+      preloadAfter.onload = () => {
+        afterLoaded = true;
+      };
+      
+      preloadBefore.onerror = () => {
+        beforeError = true;
+        checkComplete();
+      };
+      
+      preloadAfter.onerror = () => {
+        afterError = true;
+        checkComplete();
+      };
       
       preloadBefore.src = beforeUrl;
       preloadAfter.src = afterUrl;
-      
-      preloadBefore.onerror = () => setLoadError(true);
-      preloadAfter.onerror = () => setLoadError(true);
     };
     
     preloadImages();

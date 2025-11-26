@@ -3,9 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { useAuth } from "./context/AuthContext";
 import Index from "./pages/Index";
-import ProjectsPage from "./pages/Projects";
+import ProjectsPage from "./pages/ProjectsPage";
 import NewProjectPage from "./pages/NewProjectPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import ExplorePage from "./pages/ExplorePage";
@@ -17,8 +17,17 @@ import SubscriptionPage from "./pages/SubscriptionPage";
 import { BottomNav } from "./components/navigation/BottomNav";
 import { Loader2 } from 'lucide-react';
 
-// Instantiate QueryClient
-const queryClient = new QueryClient();
+// Instantiate QueryClient with optimized defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Protected Route Component
 const ProtectedRoute = () => {
@@ -45,39 +54,33 @@ const MainLayout = () => (
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Public Routes outside MainLayout - Removed Onboarding */}
-              {/* <Route path="/onboarding" element={<OnboardingPage />} /> */}
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Routes within MainLayout */}
+            <Route element={<MainLayout />}>
+              {/* Public routes within MainLayout */}
+              <Route path="/" element={<Index />} />
+              <Route path="/explore" element={<ExplorePage />} />
+              <Route path="/login" element={<LoginPage />} />
 
-              {/* Routes within MainLayout */}
-              <Route element={<MainLayout />}>
-                {/* Public routes within MainLayout */}
-                <Route path="/" element={<Index />} />
-                <Route path="/explore" element={<ExplorePage />} />
-                <Route path="/login" element={<LoginPage />} />
-
-                {/* Protected Routes within MainLayout */}
-                <Route element={<ProtectedRoute />}>
-                  {/* Moved Onboarding route here */}
-                  <Route path="/onboarding" element={<OnboardingPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/subscription" element={<SubscriptionPage />} />
-                  <Route path="/project/:id" element={<ProjectDetailPage />} />
-                  <Route path="/projects" element={<ProjectsPage />} />
-                </Route>
-
-                {/* Catch-all for 404 */}
-                <Route path="*" element={<NotFound />} />
+              {/* Protected Routes within MainLayout */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/onboarding" element={<OnboardingPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/subscription" element={<SubscriptionPage />} />
+                <Route path="/project/:id" element={<ProjectDetailPage />} />
+                <Route path="/projects" element={<ProjectsPage />} />
               </Route>
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
+
+              {/* Catch-all for 404 */}
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 };
