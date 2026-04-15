@@ -68,7 +68,7 @@ export const useUserProjects = (): UseUserProjectsResult => {
           );
           const recentSnapshot = await getDocs(recentQuery);
           setRecentProjects(recentSnapshot.docs);
-        } catch (orderError: any) {
+        } catch {
           // If ordering fails (likely due to missing index), use first 3 from all projects
           // Sort manually by createdAt if available, otherwise just take first 3
           const sorted = [...allDocs].sort((a, b) => {
@@ -112,15 +112,15 @@ export const useUserProjects = (): UseUserProjectsResult => {
         }
         setLoadingRecent(false);
 
-      } catch (err: any) {
-        // Provide more detailed error message
+      } catch (err: unknown) {
+        const e = err as Error & { code?: string };
         let errorMsg = "Failed to load project data. Please try again.";
-        if (err?.code === 'permission-denied') {
+        if (e?.code === 'permission-denied') {
           errorMsg = "Permission denied. Please check your authentication.";
-        } else if (err?.code === 'failed-precondition') {
+        } else if (e?.code === 'failed-precondition') {
           errorMsg = "Database index required. Please check the browser console for a link to create it.";
-        } else if (err?.message) {
-          errorMsg = `Error: ${err.message}`;
+        } else if (e?.message) {
+          errorMsg = `Error: ${e.message}`;
         }
         setError(errorMsg);
         setLoadingRecent(false);

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import * as logger from "firebase-functions/logger";
 import fetch from "node-fetch";

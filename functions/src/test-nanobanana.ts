@@ -1,6 +1,7 @@
+/* eslint-disable */
 /**
  * Test script for NanoBanana API integration
- * 
+ *
  * Usage:
  *   1. Build: cd functions && npm run build
  *   2. Run: node lib/test-nanobanana.js

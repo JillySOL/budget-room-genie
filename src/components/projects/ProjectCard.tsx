@@ -5,8 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
-// Update Project interface to expect thumbnailUrl
-// createdAt and updatedAt can be string, Date, or Firestore Timestamp
+interface FirestoreTimestamp {
+  toDate: () => Date;
+  toMillis: () => number;
+}
+
 export interface Project {
   id: string;
   title?: string;
@@ -20,8 +23,8 @@ export interface Project {
   beforeImageKey?: string;
   afterImageKey?: string;
   diySuggestions?: Array<{ id: string; title: string; description: string; cost: number }>; // Included for completeness
-  createdAt: string | Date | any; // Can be string, Date, or Firestore Timestamp
-  updatedAt?: string | Date | any; // Included for completeness
+  createdAt: string | Date | FirestoreTimestamp;
+  updatedAt?: string | Date | FirestoreTimestamp;
   status?: 'PENDING' | 'COMPLETE' | 'FAILED' | 'processing' | 'completed' | 'failed' | string; // Included for completeness
   aiStatus?: 'pending' | 'processing' | 'completed' | 'failed' | string;
   totalCost?: number;
@@ -38,7 +41,7 @@ interface ProjectCardProps {
 // const s3BaseUrl = import.meta.env.VITE_S3_BASE_URL || '';
 
 // Helper function to safely convert Firestore Timestamp or string to Date
-const toDate = (dateValue: any): Date => {
+const toDate = (dateValue: string | Date | FirestoreTimestamp | null | undefined): Date => {
   if (!dateValue) return new Date();
   
   // If it's a Firestore Timestamp, convert it

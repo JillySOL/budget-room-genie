@@ -287,15 +287,16 @@ async function uploadGeneratedImageToStorage(
         logger.info(`Returning Firebase Storage public URL for aiGeneratedImageURL field`);
         
         return publicUrl;
-    } catch (uploadError: any) {
+    } catch (uploadError: unknown) {
+        const err = uploadError as Error & { code?: string; status?: number };
         logger.error(`Failed to upload generated image to storage for project ${projectId}`);
         logger.error("Upload error details:", {
-            message: uploadError?.message,
-            code: uploadError?.code,
-            status: uploadError?.status,
-            stack: uploadError?.stack
+            message: err?.message,
+            code: err?.code,
+            status: err?.status,
+            stack: err?.stack
         });
-        throw new Error(`Failed to save generated image: ${uploadError?.message || 'Unknown error'}`);
+        throw new Error(`Failed to save generated image: ${err?.message || 'Unknown error'}`);
     }
 }
 
@@ -436,14 +437,14 @@ The output must look like a professional real estate or interior design photogra
         let generatedImageBase64: string;
         try {
             generatedImageBase64 = await generateImageWithNanoBanana(apiKey, generationPrompt, publicImageUrl, {
-                aspectRatio: imageAspectRatio as any,
+                aspectRatio: imageAspectRatio as '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9',
             });
             logger.info(`✅ Gemini API image generation completed. Image data length: ${generatedImageBase64.length} characters (base64)`);
-        } catch (nanobananaError: any) {
+        } catch (nanobananaError: unknown) {
+            const nbErr = nanobananaError as Error;
             logger.error("❌ ERROR in generateImageWithNanoBanana:", {
-                error: nanobananaError,
-                message: nanobananaError?.message,
-                stack: nanobananaError?.stack,
+                message: nbErr?.message,
+                stack: nbErr?.stack,
                 apiKeyLength: apiKey?.length,
                 promptLength: generationPrompt.length,
                 imageUrl: publicImageUrl
@@ -485,16 +486,17 @@ The output must look like a professional real estate or interior design photogra
         
         logger.info(`Successfully processed project ${projectId} and updated Firestore with generated image URL.`);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as Error & { response?: unknown; config?: unknown };
         logger.error(`❌ ERROR processing project ${projectId}:`);
-        logger.error("Error type:", error?.constructor?.name);
-        logger.error("Error message:", error?.message);
-        logger.error("Error stack:", error?.stack);
-        if (error?.response) {
-            logger.error("Error response:", error.response);
+        logger.error("Error type:", err?.constructor?.name);
+        logger.error("Error message:", err?.message);
+        logger.error("Error stack:", err?.stack);
+        if (err?.response) {
+            logger.error("Error response:", err.response);
         }
-        if (error?.config) {
-            logger.error("Error config:", error.config);
+        if (err?.config) {
+            logger.error("Error config:", err.config);
         }
         
         // General error handling: update Firestore with failure status
@@ -648,8 +650,9 @@ export const fixImageUrl = onCall(async (request) => {
     logger.info(`✅ Updated Firestore with new URL`);
     
     return { success: true, newUrl: publicUrl };
-  } catch (error: any) {
-    logger.error(`Error fixing image URL: ${error.message}`);
+  } catch (error: unknown) {
+    const err = error as Error;
+    logger.error(`Error fixing image URL: ${err.message}`);
     throw error;
   }
 });

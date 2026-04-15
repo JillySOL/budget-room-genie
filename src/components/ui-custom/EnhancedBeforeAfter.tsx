@@ -72,7 +72,7 @@ const EnhancedBeforeAfter = ({
     };
     
     preloadImages();
-  }, [beforeUrl, afterUrl]);
+  }, [beforeUrl, afterUrl, onLoadError]);
 
   // If images fail to load, show a placeholder instead
   if (loadError) {

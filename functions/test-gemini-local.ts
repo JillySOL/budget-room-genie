@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * Local test script for Gemini API
  * Run with: npx ts-node functions/test-gemini-local.ts
