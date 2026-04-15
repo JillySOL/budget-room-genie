@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, RefreshCw, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter.tsx";
 import {
   Accordion,
@@ -10,9 +10,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { db, functions } from "@/firebase-config";
-import { doc, getDoc, DocumentData } from "firebase/firestore";
-import { httpsCallable } from 'firebase/functions';
+import { db } from "@/firebase-config";
+import { doc, onSnapshot, DocumentData } from "firebase/firestore";
 import { toast } from 'sonner';
 
 interface DIYSuggestion {
@@ -37,9 +36,6 @@ const ProjectDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(loadingMessages[0]);
-  const [fixingUrl, setFixingUrl] = useState(false);
-  const [needsUrlFix, setNeedsUrlFix] = useState(false);
-  const [imageLoadError, setImageLoadError] = useState(false);
 
   // Effect for cycling loading messages
   useEffect(() => {
@@ -66,156 +62,32 @@ const ProjectDetailPage = () => {
   }, [projectData?.aiStatus]); // Re-run when aiStatus changes
 
   useEffect(() => {
-    let pollInterval: NodeJS.Timeout | null = null;
-    
-    const fetchProject = async () => {
-      if (!id) {
-        setError("Project ID not found.");
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      try {
-        const docRef = doc(db, "projects", id);
-        const docSnap = await getDoc(docRef);
+    if (!id) {
+      setError("Project ID not found.");
+      setLoading(false);
+      return;
+    }
 
+    const docRef = doc(db, "projects", id);
+    const unsubscribe = onSnapshot(
+      docRef,
+      (docSnap) => {
         if (docSnap.exists()) {
-          const data = docSnap.data();
-          setProjectData(data);
-          
-          // Check AI status
-          const aiStatus = data.aiStatus;
-          
-          // Only show processing state if not completed
-          if (!aiStatus || aiStatus === "pending" || aiStatus === "processing") {
-            // Always set up polling regardless of initial status
-            pollInterval = setInterval(async () => {
-              try {
-                const updatedDocSnap = await getDoc(docRef);
-                if (updatedDocSnap.exists()) {
-                  const updatedData = updatedDocSnap.data();
-                  const updatedStatus = updatedData.aiStatus;
-                  
-                  setProjectData(updatedData);
-                  
-                  const hasGeneratedImage = updatedData.aiGeneratedImageURL && 
-                                           typeof updatedData.aiGeneratedImageURL === 'string' && 
-                                           updatedData.aiGeneratedImageURL.trim() !== '';
-                  
-                  if (updatedStatus === "completed") {
-                    if (hasGeneratedImage) {
-                      if (pollInterval) {
-                        clearInterval(pollInterval);
-                        pollInterval = null;
-                      }
-                    }
-                  } else if (updatedStatus === "failed") {
-                    if (pollInterval) {
-                      clearInterval(pollInterval);
-                      pollInterval = null;
-                    }
-                  }
-                }
-              } catch (pollError) {
-                // Silently handle polling errors - they're expected if the document doesn't exist yet
-                if (pollInterval) {
-                  clearInterval(pollInterval);
-                  pollInterval = null;
-                }
-              }
-            }, 3000); // Poll every 3 seconds
-          }
+          setProjectData(docSnap.data());
         } else {
           setError("Project not found.");
         }
-      } catch (err) {
+        setLoading(false);
+      },
+      () => {
         setError("Failed to load project details.");
-      } finally {
         setLoading(false);
       }
-    };
+    );
 
-    fetchProject();
-    
-    // Clean up interval on component unmount
-    return () => {
-      if (pollInterval) {
-        clearInterval(pollInterval);
-      }
-    };
+    return () => unsubscribe();
   }, [id]);
 
-  const handleSaveToNotebook = () => {
-    if (!projectData) return;
-    
-    localStorage.setItem('savedDesign', JSON.stringify({
-      id: id || "project",
-      name: projectData.projectName || "My Project",
-      totalCost: projectData.aiTotalEstimatedCost || 0,
-      valueAdd: projectData.aiEstimatedValueAdded || 0,
-      suggestions: projectData.aiSuggestions || [],
-    }));
-    toast('Saved to Local Notebook');
-  };
-
-  const handleDownload = () => {
-    alert("Download functionality not implemented yet.");
-  };
-
-  // Function to manually refresh project data
-  const handleRefresh = async () => {
-    if (!id) return;
-    
-    try {
-      const docRef = doc(db, "projects", id);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        const refreshedData = docSnap.data();
-        setProjectData(refreshedData);
-      }
-    } catch (err) {
-      // Silently handle refresh errors
-    }
-  };
-
-  const handleFixImageUrl = async () => {
-    if (!id || fixingUrl) return;
-    try {
-      setFixingUrl(true);
-      toast.loading("Fixing image URL...");
-      const fixImageUrl = httpsCallable<{ projectId: string }, { success: boolean; newUrl: string }>(
-        functions,
-        'fixImageUrl'
-      );
-      const result = await fixImageUrl({ projectId: id });
-      if (result.data.success) {
-        toast.success("Image URL fixed! Refreshing...");
-        await handleRefresh();
-        setNeedsUrlFix(false);
-        setImageLoadError(false);
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to fix image URL");
-    } finally {
-      setFixingUrl(false);
-    }
-  };
-
-  // Auto-detect if URL needs fixing - show button if image exists but might not be loading
-  useEffect(() => {
-    if (projectData?.aiGeneratedImageURL && projectData?.aiStatus === 'completed') {
-      const url = projectData.aiGeneratedImageURL;
-      // Show fix button if URL exists and is in the public format (might need fixing)
-      // Always show it if we have a generated image URL and status is completed
-      setNeedsUrlFix(true);
-    } else {
-      setNeedsUrlFix(false);
-    }
-  }, [projectData?.aiGeneratedImageURL, projectData?.aiStatus]);
-
-  // Also show button if image fails to load (detected by EnhancedBeforeAfter component)
-  // This is handled by the imageLoadError state set by onLoadError callback
 
   if (loading) {
     return (
@@ -348,68 +220,18 @@ const ProjectDetailPage = () => {
                       Error: {projectData.aiError}
                     </p>
                   )}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleRefresh} 
-                    className="mt-3 w-full flex items-center justify-center gap-1"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                    <span>Refresh</span>
-                  </Button>
                 </div>
               </div>
             </div>
-          ) : hasGeneratedImage && afterImage !== beforeImage ? (
-            // Only show before/after comparison when we have a valid, different generated image
+          ) : hasGeneratedImage ? (
             <div className="mb-6">
-              {(needsUrlFix || imageLoadError) && (
-                <div className="mb-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-600 rounded-lg">
-                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-3">
-                    ⚠️ {imageLoadError ? 'Image failed to load. Click to fix the URL and make the file public.' : 'Image URL needs to be updated to display correctly.'}
-                  </p>
-                  <Button
-                    variant="default"
-                    size="default"
-                    onClick={handleFixImageUrl}
-                    disabled={fixingUrl}
-                    className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-medium"
-                  >
-                    {fixingUrl ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Fixing URL...
-                      </>
-                    ) : (
-                      '🔧 Fix Image URL Now'
-                    )}
-                  </Button>
-                </div>
-              )}
               <EnhancedBeforeAfter
                 beforeImage={beforeImage}
                 afterImage={afterImage}
                 className="rounded-lg overflow-hidden shadow-md border dark:border-gray-700"
-                onLoadError={() => setImageLoadError(true)}
               />
             </div>
-          ) : (
-            // Fallback: Still show loading if somehow we got here without a generated image
-            <div className="relative mb-6 rounded-lg overflow-hidden shadow-md border dark:border-gray-700 bg-gray-100 dark:bg-gray-800 h-64">
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                <div className="bg-white/90 dark:bg-gray-800/90 rounded-lg p-4 shadow-lg max-w-xs w-full backdrop-blur-sm">
-                  <div className="flex items-center justify-center mb-3">
-                    <Loader2 className="h-8 w-8 animate-spin text-budget-accent" />
-                  </div>
-                  <p className="text-sm text-center font-medium text-gray-700 dark:text-gray-300">
-                    {hasGeneratedImage && afterImage === beforeImage 
-                      ? "Generated image is being processed..." 
-                      : "Waiting for generated image..."}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          ) : null}
           
           <Accordion type="single" collapsible defaultValue="suggestions" className="mb-6 w-full bg-card p-4 sm:p-6 rounded-lg border dark:border-gray-700 shadow-sm">
             <AccordionItem value="suggestions">
@@ -462,24 +284,6 @@ const ProjectDetailPage = () => {
             </AccordionItem>
           </Accordion>
           
-          <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
-            <Button className="gap-2 w-full sm:w-auto" disabled title="Functionality coming soon">
-              <Download className="h-4 w-4" />
-              Save to My Projects 
-            </Button>
-            <Button 
-              variant="outline"
-              className="gap-2 w-full sm:w-auto"
-              onClick={handleSaveToNotebook}
-              disabled={showAiState}
-            >
-              <span className="mr-1">📝</span> Save to Local Notebook
-            </Button>
-            <Button onClick={handleDownload} className="gap-2 w-full sm:w-auto" disabled title="Functionality coming soon">
-              <Download className="h-4 w-4" />
-              Download Results
-            </Button>
-          </div>
         </div>
       </div>
     </PageContainer>

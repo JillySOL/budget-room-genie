@@ -2,6 +2,35 @@ import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import * as logger from "firebase-functions/logger";
 import fetch from "node-fetch";
 
+/**
+ * NanoBanana Pro Model Configuration
+ * 
+ * To enable Pro model (for testing):
+ * 
+ * Local Testing:
+ * - Linux/Mac: export USE_NANOBANANA_PRO=true
+ * - Windows: $env:USE_NANOBANANA_PRO="true"
+ * - Or create .env file in functions/ directory: USE_NANOBANANA_PRO=true
+ * 
+ * Firebase Functions (Production):
+ * - Via Firebase Console: Functions > Select function > Configuration > Environment variables
+ * - Add: USE_NANOBANANA_PRO = true
+ * - Or via CLI: firebase functions:config:set nanobanana.pro="true" (legacy)
+ * 
+ * To disable/revert: Remove the environment variable or set it to false/empty
+ * 
+ * Pro model differences:
+ * - Endpoint: /api/v1/nanobanana/generate-pro (vs /api/v1/nanobanana/generate)
+ * - Parameters: resolution (1K/2K/4K), aspectRatio (various ratios)
+ * - Removed: numImages, type, image_size
+ * 
+ * Defaults when Pro is enabled:
+ * - resolution: '2K'
+ * - aspectRatio: '16:9'
+ * 
+ * Note: Response structure and polling logic remain the same for both APIs
+ */
+
 export async function getNanoBananaApiKey(): Promise<string> {
   // First, check if API key is provided as environment variable (for testing/fallback)
   if (process.env.NANOBANANA_API_KEY) {
@@ -55,48 +84,80 @@ export async function getNanoBananaApiKey(): Promise<string> {
 /**
  * Generates an edited image using NanoBanana API
  * 
- * API Documentation: https://docs.nanobananaapi.ai/nanobanana-api/generate-or-edit-image
+ * API Documentation: 
+ * - Regular: https://docs.nanobananaapi.ai/nanobanana-api/generate-or-edit-image
+ * - Pro: https://docs.nanobananaapi.ai/nanobanana-api/generate-image-pro
  * 
  * @param apiKey NanoBanana API key (Bearer token)
  * @param prompt Editing instructions
  * @param imageUrl URL of the image to edit (must be publicly accessible)
+ * @param options Optional configuration for Pro model (resolution, aspectRatio)
  * @returns Base64 encoded image data
  */
 export async function generateImageWithNanoBanana(
   apiKey: string,
   prompt: string,
-  imageUrl: string
+  imageUrl: string,
+  options?: {
+    resolution?: '1K' | '2K' | '4K';
+    aspectRatio?: '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9';
+  }
 ): Promise<string> {
   try {
     const trimmedApiKey = apiKey.trim();
-    logger.info(`Generating image with NanoBanana API`);
+    
+    const usePro = process.env.USE_NANOBANANA_PRO === 'true' || process.env.USE_NANOBANANA_PRO === '1';
+    
+    logger.info(`Generating image with NanoBanana API (${usePro ? 'Pro' : 'Regular'} mode)`);
     logger.info(`Prompt length: ${prompt.length} characters`);
     logger.info(`Image URL: ${imageUrl}`);
     logger.info(`API key length: ${trimmedApiKey.length} characters`);
     
-    // NanoBanana API endpoint (normal, not Pro)
-    const baseUrl = 'https://api.nanobananaapi.ai/api/v1/nanobanana/generate';
+    // Determine endpoint based on Pro mode
+    const baseUrl = usePro 
+      ? 'https://api.nanobananaapi.ai/api/v1/nanobanana/generate-pro'
+      : 'https://api.nanobananaapi.ai/api/v1/nanobanana/generate';
     
     logger.info(`Calling NanoBanana API: ${baseUrl}`);
     
-    // Prepare request body according to NanoBanana API format
-    // Note: API requires callBackUrl, but we'll use polling instead
-    const requestBody = {
-      prompt: prompt,
-      numImages: 1,
-      imageUrls: [imageUrl], // Array of input image URLs for image editing
-      type: "IMAGETOIAMGE", // Note: API docs show typo "IMAGETOIAMGE" not "IMAGETOIMAGE"
-      image_size: "16:9",
-      callBackUrl: "https://example.com/callback" // Required but we'll poll instead
-    };
+    // Prepare request body - different format for Pro vs Regular
+    let requestBody: any;
     
-    logger.info(`Request body:`, {
-      promptLength: prompt.length,
-      imageUrl: imageUrl,
-      numImages: 1,
-      type: "IMAGETOIAMGE",
-      image_size: "16:9"
-    });
+    if (usePro) {
+      // Pro API format
+      requestBody = {
+        prompt: prompt,
+        imageUrls: [imageUrl], // Array of input image URLs (up to 8)
+        resolution: options?.resolution || '2K', // 1K, 2K, or 4K
+        aspectRatio: options?.aspectRatio || '16:9', // Various aspect ratios
+        callBackUrl: "https://example.com/callback" // Required but we'll poll instead
+      };
+      
+      logger.info(`Request body (Pro):`, {
+        promptLength: prompt.length,
+        imageUrl: imageUrl,
+        resolution: requestBody.resolution,
+        aspectRatio: requestBody.aspectRatio
+      });
+    } else {
+      // Regular API format
+      requestBody = {
+        prompt: prompt,
+        numImages: 1,
+        imageUrls: [imageUrl], // Array of input image URLs for image editing
+        type: "IMAGETOIAMGE", // Note: API docs show typo "IMAGETOIAMGE" not "IMAGETOIMAGE"
+        image_size: "16:9",
+        callBackUrl: "https://example.com/callback" // Required but we'll poll instead
+      };
+      
+      logger.info(`Request body (Regular):`, {
+        promptLength: prompt.length,
+        imageUrl: imageUrl,
+        numImages: 1,
+        type: "IMAGETOIAMGE",
+        image_size: "16:9"
+      });
+    }
     
     // Make request with Bearer token authentication
     const response = await fetch(baseUrl, {

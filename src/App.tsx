@@ -1,4 +1,3 @@
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,7 +5,6 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "rea
 import { useAuth } from "./context/AuthContext";
 import Index from "./pages/Index";
 import ProjectsPage from "./pages/ProjectsPage";
-import NewProjectPage from "./pages/NewProjectPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import ExplorePage from "./pages/ExplorePage";
 import NotFound from "./pages/NotFound";
@@ -55,7 +53,6 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
         <Sonner />
         <BrowserRouter>
           <Routes>

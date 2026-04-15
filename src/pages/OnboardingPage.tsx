@@ -91,14 +91,48 @@ const OnboardingPage = () => {
     fetchProjects();
   }, [currentUser]);
 
+  const [imageAspectRatio, setImageAspectRatio] = useState<string>("4:3");
+
+  const detectAspectRatio = (dataUrl: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        const ratio = w / h;
+        // Map to nearest NanoBanana Pro supported aspect ratio
+        const ratios: { ratio: number; label: string }[] = [
+          { ratio: 1 / 1,   label: "1:1"  },
+          { ratio: 2 / 3,   label: "2:3"  },
+          { ratio: 3 / 2,   label: "3:2"  },
+          { ratio: 3 / 4,   label: "3:4"  },
+          { ratio: 4 / 3,   label: "4:3"  },
+          { ratio: 4 / 5,   label: "4:5"  },
+          { ratio: 5 / 4,   label: "5:4"  },
+          { ratio: 9 / 16,  label: "9:16" },
+          { ratio: 16 / 9,  label: "16:9" },
+        ];
+        const closest = ratios.reduce((prev, curr) =>
+          Math.abs(curr.ratio - ratio) < Math.abs(prev.ratio - ratio) ? curr : prev
+        );
+        resolve(closest.label);
+      };
+      img.onerror = () => resolve("4:3");
+      img.src = dataUrl;
+    });
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       setSelectedExistingImageUrl(null);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreviewUrl(reader.result as string);
+      reader.onloadend = async () => {
+        const dataUrl = reader.result as string;
+        setImagePreviewUrl(dataUrl);
+        const detectedRatio = await detectAspectRatio(dataUrl);
+        setImageAspectRatio(detectedRatio);
       };
       reader.readAsDataURL(file);
     } else {
@@ -161,6 +195,7 @@ const OnboardingPage = () => {
         ...userData,
         userId: currentUser.uid,
         uploadedImageURL: finalImageURL,
+        imageAspectRatio,
         createdAt: serverTimestamp(),
         projectName: `${userData.style || 'My'} ${userData.roomType || 'Room'} Project`,
       };

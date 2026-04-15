@@ -24,7 +24,7 @@ const db = admin.firestore();
 // Removed downloadImageAndEncode - no longer needed, NanoBanana Pro accepts URLs directly
 
 // Generate renovation suggestions based on room type
-function generateSuggestionsByRoomType(roomType: string, budget: string, style: string): {
+function generateSuggestionsByRoomType(roomType: string, budget: string, style: string, renovationType: string = "budget"): {
     suggestions: Array<{item: string, cost: number, description: string}>;
     totalEstimatedCost: number;
     estimatedValueAdded: number;
@@ -35,10 +35,11 @@ function generateSuggestionsByRoomType(roomType: string, budget: string, style: 
     let totalEstimatedCost = 0;
     let estimatedValueAdded = 0;
     let afterImageDescription = "";
-    
-    // Budget tier determination (assumed format: "$500-$1000" or similar)
-    const isBudgetLow = budget.includes("$500") || budget.includes("under") || budget.includes("low");
-    const isBudgetHigh = budget.includes("$5000") || budget.includes("high") || budget.includes("unlimited");
+
+    // Budget tier determination - budget is stored as a numeric string e.g. "300", "500", "1000", "2000"
+    const budgetNum = parseInt(budget, 10) || 500;
+    const isBudgetLow = budgetNum <= 500;
+    const isBudgetHigh = budgetNum >= 1000;
     
     switch(roomType.toLowerCase()) {
         case "bathroom":
@@ -316,6 +317,8 @@ async function updateUserSubscription(userId: string, planId: SubscriptionPlanTy
 }
 
 // --- Main Cloud Function Trigger ---
+// Pro model is enabled via environment variable USE_NANOBANANA_PRO=true
+// Set in .env file or Firebase Console environment variables
 export const generateRenovationSuggestions = onDocumentCreated(
     {
         document: "projects/{projectId}",
@@ -357,10 +360,12 @@ export const generateRenovationSuggestions = onDocumentCreated(
 
         // --- Extract Data & Generate Suggestions ---
         const imageUrl = projectData.uploadedImageURL as string;
-        const budget = projectData.budget || "not specified";
+        const budget = projectData.budget || "500";
         const style = projectData.style || "modern";
         const roomType = projectData.roomType || "room";
-        const analysisResult = generateSuggestionsByRoomType(roomType, budget, style);
+        const renovationType = projectData.renovationType || "budget";
+        const imageAspectRatio = (projectData.imageAspectRatio as string) || "4:3";
+        const analysisResult = generateSuggestionsByRoomType(roomType, budget, style, renovationType);
         logger.info(`Generated suggestions for ${projectId}`);
 
         // --- Update Firestore: Processing Started ---
@@ -381,27 +386,30 @@ export const generateRenovationSuggestions = onDocumentCreated(
         const publicImageUrl = imageUrl;
         logger.info(`Using Firebase Storage URL directly for NanoBanana Pro: ${publicImageUrl}`);
 
-        // Enhanced prompt engineering with all user parameters
-        const generationPrompt = `You are a professional interior designer. Edit the provided room image to show a renovated version based on these specifications:
+        // Build renovation scope based on type
+        const budgetNum = parseInt(budget, 10) || 500;
+        const renovationScopeMap: Record<string, string> = {
+            budget: `BUDGET FLIP (under $${budgetNum}): Make only affordable, high-impact cosmetic changes. This means: fresh paint on walls, swap soft furnishings (cushions, curtains, rugs), update small décor items and accessories, add or rearrange plants. Do NOT change flooring, cabinetry, appliances, or any fixed elements. Keep all furniture in place.`,
+            full: `FULL RENOVATION (up to $${budgetNum}): Transform the entire room. Replace flooring, update or repaint cabinetry, swap all furniture, install new light fixtures, update window treatments, add architectural features if appropriate. Make it look like a completely professional renovation.`,
+            visual: `VISUALIZE (dream scenario): Show the most beautiful, aspirational version of this room in the ${style} style with no budget constraints. Replace everything that would benefit from it — flooring, furniture, lighting, fixtures, décor — while keeping the room's footprint and architectural structure.`,
+        };
+        const renovationScope = renovationScopeMap[renovationType] || renovationScopeMap["budget"];
 
-ROOM TYPE: ${roomType}
-DESIGN STYLE: ${style}
-BUDGET LEVEL: ${budget}
+        const generationPrompt = `You are a professional interior designer and photo editor. Transform the provided ${roomType} photo into a realistic renovation result.
 
-RENOVATION DESCRIPTION:
-${analysisResult.afterImageDescription}
+RENOVATION TYPE: ${renovationScope}
 
-CRITICAL REQUIREMENTS:
-1. Maintain the EXACT same camera angle, perspective, and room structure as the original image
-2. Keep the same lighting conditions and natural light sources
-3. Only modify design elements (paint, fixtures, furniture, décor) - do NOT change room dimensions or layout
-4. Apply the ${style} design style consistently throughout
-5. Ensure all changes are realistic and achievable within a ${budget} budget
-6. The result must be photorealistic and look like a real photograph
-7. Preserve the original room's architectural features (windows, doors, structural elements)
-8. Make the renovation look natural and cohesive, as if it was professionally done
+DESIGN STYLE: ${style} — apply this aesthetic consistently to every surface, material, and object you change.
 
-Focus on: ${style.toLowerCase()} aesthetic elements, appropriate materials for ${budget} budget, and maintaining the room's original character while updating it to match the ${style} style.`;
+ABSOLUTE REQUIREMENTS — follow these exactly:
+1. Keep the IDENTICAL camera angle, perspective, focal length, and room geometry as the original photo. The walls, windows, doors, and ceiling must stay in exactly the same position.
+2. Match the original photo's lighting — preserve the direction and quality of natural light sources (windows). Only update artificial fixtures if the renovation type allows it.
+3. Every change must look like a real photograph of a real room, not a render or illustration.
+4. Preserve all architectural elements (window frames, door frames, skirting boards, cornices) unless the renovation type is "full" or "visual".
+5. Maintain realistic scale and proportions for all furniture and objects.
+6. Blend all changes seamlessly — shadows, reflections, and textures must be photorealistic.
+
+The output must look like a professional real estate or interior design photograph of the same room after renovation.`;
         
         // Log the complete prompt for debugging
         logger.info("=== GENERATION PROMPT ===");
@@ -427,7 +435,9 @@ Focus on: ${style.toLowerCase()} aesthetic elements, appropriate materials for $
         
         let generatedImageBase64: string;
         try {
-            generatedImageBase64 = await generateImageWithNanoBanana(apiKey, generationPrompt, publicImageUrl);
+            generatedImageBase64 = await generateImageWithNanoBanana(apiKey, generationPrompt, publicImageUrl, {
+                aspectRatio: imageAspectRatio as any,
+            });
             logger.info(`✅ Gemini API image generation completed. Image data length: ${generatedImageBase64.length} characters (base64)`);
         } catch (nanobananaError: any) {
             logger.error("❌ ERROR in generateImageWithNanoBanana:", {
