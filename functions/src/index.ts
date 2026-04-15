@@ -16,6 +16,7 @@ import sharp from 'sharp';
 
 import { getNanoBananaApiKey, generateImageWithNanoBanana } from './services/nanobanana';
 import { canUserGenerateDesign, getUserSubscription, subscriptionPlans, SubscriptionPlanType } from './services/subscriptions';
+import { generateDIYSuggestionsWithAI } from './services/openai';
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
@@ -366,20 +367,34 @@ export const generateRenovationSuggestions = onDocumentCreated(
         const roomType = projectData.roomType || "room";
         const renovationType = projectData.renovationType || "budget";
         const imageAspectRatio = (projectData.imageAspectRatio as string) || "4:3";
-        const analysisResult = generateSuggestionsByRoomType(roomType, budget, style, renovationType);
-        logger.info(`Generated suggestions for ${projectId}`);
 
-        // --- Update Firestore: Processing Started ---
+        // --- Update Firestore: Processing Started (static fallback suggestions) ---
+        const staticResult = generateSuggestionsByRoomType(roomType, budget, style, renovationType);
         await projectRef.update({
-            aiStatus: "processing", // More accurate initial status
-            aiSuggestions: analysisResult.suggestions || [],
-            aiTotalEstimatedCost: analysisResult.totalEstimatedCost || 0,
-            aiEstimatedValueAdded: analysisResult.estimatedValueAdded || 0,
-            aiAfterImageDescription: analysisResult.afterImageDescription || "",
+            aiStatus: "processing",
+            aiSuggestions: staticResult.suggestions || [],
+            aiTotalEstimatedCost: staticResult.totalEstimatedCost || 0,
+            aiEstimatedValueAdded: staticResult.estimatedValueAdded || 0,
+            aiAfterImageDescription: staticResult.afterImageDescription || "",
             aiError: null,
             aiProcessedAt: FieldValue.serverTimestamp(),
         });
-        logger.info("Updated Firestore: processing started.");
+        logger.info("Updated Firestore: processing started (static suggestions written).");
+
+        // --- Generate AI suggestions with GPT-4o (overwrites static fallback) ---
+        try {
+            const aiResult = await generateDIYSuggestionsWithAI(roomType, budget, style, renovationType);
+            await projectRef.update({
+                aiSuggestions: aiResult.suggestions,
+                aiTotalEstimatedCost: aiResult.totalEstimatedCost,
+                aiEstimatedValueAdded: aiResult.estimatedValueAdded,
+            });
+            logger.info(`Updated Firestore with ${aiResult.suggestions.length} AI-generated suggestions.`);
+        } catch (aiSuggestionsError: unknown) {
+            const err = aiSuggestionsError as Error;
+            logger.warn(`AI suggestion generation failed, keeping static fallback. Error: ${err?.message}`);
+            // Static suggestions remain — image generation continues regardless
+        }
 
         // --- Image Generation Steps ---
         // NanoBanana Pro accepts image URLs directly - no need to download/re-upload
@@ -420,7 +435,6 @@ The output must look like a professional real estate or interior design photogra
             roomType,
             style,
             budget,
-            afterImageDescription: analysisResult.afterImageDescription,
             promptLength: generationPrompt.length
         });
         

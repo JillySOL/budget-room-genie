@@ -4,7 +4,7 @@ import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ArrowRight, Home, Paintbrush, Hammer, DollarSign, Camera, Check, Upload, Image as ImageIcon, Loader2 } from "lucide-react";
+import { ArrowLeft, DollarSign, Camera, Check, Upload, Loader2, Sofa, Bed, UtensilsCrossed, Bath, Monitor, TreePine, Hammer } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Logo from "@/components/ui-custom/Logo";
 import StyleChip from "@/components/ui-custom/StyleChip";
@@ -38,12 +38,12 @@ const OnboardingPage = () => {
   });
 
   const roomTypes = [
-    { id: "living-room", name: "Living Room", icon: <Home className="h-5 w-5" /> },
-    { id: "bedroom", name: "Bedroom", icon: <Home className="h-5 w-5" /> },
-    { id: "kitchen", name: "Kitchen", icon: <Paintbrush className="h-5 w-5" /> },
-    { id: "bathroom", name: "Bathroom", icon: <Paintbrush className="h-5 w-5" /> },
-    { id: "office", name: "Home Office", icon: <Hammer className="h-5 w-5" /> },
-    { id: "outdoor", name: "Outdoor", icon: <Hammer className="h-5 w-5" /> },
+    { id: "living-room", name: "Living Room", icon: <Sofa className="h-5 w-5" /> },
+    { id: "bedroom", name: "Bedroom", icon: <Bed className="h-5 w-5" /> },
+    { id: "kitchen", name: "Kitchen", icon: <UtensilsCrossed className="h-5 w-5" /> },
+    { id: "bathroom", name: "Bathroom", icon: <Bath className="h-5 w-5" /> },
+    { id: "office", name: "Home Office", icon: <Monitor className="h-5 w-5" /> },
+    { id: "outdoor", name: "Outdoor", icon: <TreePine className="h-5 w-5" /> },
   ];
 
   const budgetOptions = [
@@ -252,7 +252,33 @@ const OnboardingPage = () => {
         <div className="w-8"></div>
       </div>
 
-      <Progress value={(currentStep / TOTAL_STEPS) * 100} className="w-full mb-6 h-1" />
+      <Progress value={(currentStep / TOTAL_STEPS) * 100} className="w-full mb-4 h-1" />
+
+      {/* Selection summary — shows chosen options as the user progresses */}
+      {currentStep > 1 && (
+        <div className="flex flex-wrap gap-1.5 mb-5">
+          {userData.roomType && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-budget-accent/10 text-budget-accent capitalize">
+              {roomTypes.find(r => r.id === userData.roomType)?.name || userData.roomType}
+            </span>
+          )}
+          {currentStep > 2 && userData.budget && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+              {budgetOptions.find(b => b.id === userData.budget)?.label || `$${userData.budget}`}
+            </span>
+          )}
+          {currentStep > 3 && userData.style && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground capitalize">
+              {userData.style}
+            </span>
+          )}
+          {currentStep > 4 && userData.renovationType && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+              {renovationTypes.find(t => t.id === userData.renovationType)?.name || userData.renovationType}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="flex-1 pb-6">
         {currentStep === 1 && (
@@ -445,7 +471,7 @@ const OnboardingPage = () => {
             Back
           </Button>
           <Button onClick={currentStep === TOTAL_STEPS ? handleSaveProject : handleNextStep} disabled={isNextDisabled() || isUploading}> 
-            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : (currentStep === TOTAL_STEPS ? "Create Project" : "Next")}
+            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : (currentStep === TOTAL_STEPS ? "Generate My Renovation" : "Next")}
           </Button>
         </div>
       </div>

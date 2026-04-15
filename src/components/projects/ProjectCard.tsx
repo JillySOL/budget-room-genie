@@ -1,14 +1,18 @@
 import { Link } from "react-router-dom";
 import { formatDistance } from "date-fns";
-import { ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
 interface FirestoreTimestamp {
   toDate: () => Date;
   toMillis: () => number;
 }
+
+const renovationTypeLabel: Record<string, string> = {
+  budget: "Budget Flip",
+  full: "Full Reno",
+  visual: "Visualize",
+};
 
 export interface Project {
   id: string;
@@ -97,9 +101,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
      e.currentTarget.alt = 'Error loading image';
   };
 
-  // Placeholder progress - 100% if complete, 50% otherwise
-  const progressPercent = (displayStatus === 'COMPLETE' || displayStatus === 'completed') ? 100 : 50;
-
   // Determine status badge variant
   const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
     const upperStatus = status.toUpperCase();
@@ -119,18 +120,20 @@ export function ProjectCard({ project }: ProjectCardProps) {
             onError={handleImageError}
             loading="lazy"
           />
-          <Badge 
-            variant={getStatusVariant(displayStatus)} 
-            className="absolute top-2 right-2 capitalize text-xs font-medium shadow-sm"
-          >
-            {displayStatus.toLowerCase()}
-          </Badge>
-          <Badge 
-            variant="outline" 
+          <Badge
+            variant="outline"
             className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm text-xs font-medium shadow-sm"
           >
             {project.roomType || 'Room'}
           </Badge>
+          {project.renovationType && (
+            <Badge
+              variant="outline"
+              className="absolute bottom-2 right-2 bg-background/90 backdrop-blur-sm text-xs font-medium shadow-sm"
+            >
+              {renovationTypeLabel[project.renovationType] || project.renovationType}
+            </Badge>
+          )}
         </div>
         <CardContent className="p-4 flex-1 flex flex-col justify-between gap-3">
           <div className="space-y-2">
@@ -142,12 +145,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
             </p>
           </div>
           
-          <div className="space-y-1.5 pt-1 border-t border-border/50">
-            <div className="flex justify-between items-center text-xs text-muted-foreground">
-              <span className="font-medium">Progress</span>
-              <span className="font-semibold">{progressPercent}%</span>
-            </div>
-            <Progress value={progressPercent} className="h-2" />
+          <div className="flex items-center justify-between pt-1 border-t border-border/50">
+            <span className="text-xs text-muted-foreground">{timeAgo}</span>
+            <Badge variant={getStatusVariant(displayStatus)} className="text-xs capitalize">
+              {displayStatus.toLowerCase()}
+            </Badge>
           </div>
         </CardContent>
       </Card>

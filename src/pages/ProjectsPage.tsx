@@ -2,13 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { 
-  Plus, 
-  Filter, 
-  ArrowUpDown, 
-  Trash2, 
-  Copy, 
-  MoreHorizontal,
+import {
+  Plus,
+  Filter,
+  ArrowUpDown,
+  Trash2,
   Search,
   ChevronRight
 } from "lucide-react";
@@ -31,14 +29,6 @@ import {
 } from "firebase/firestore";
 import { ref, deleteObject, listAll } from "firebase/storage";
 import { Input } from "@/components/ui/input";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -190,32 +180,6 @@ const Projects = () => {
     }
   };
   
-  const handleDuplicateProject = async (projectId: string) => {
-    if (!currentUser) return;
-    
-    try {
-      const projectDoc = projectDocs.find(doc => doc.id === projectId);
-      if (!projectDoc) return;
-      
-      const projectData = projectDoc.data();
-      
-      const newProject = {
-        ...projectData,
-        title: `${projectData.title || 'Untitled'} (Copy)`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        userId: currentUser.uid
-      };
-      
-      // Navigate to onboarding with the duplicated project data
-      navigate('/onboarding', { state: { duplicatedProject: newProject } });
-      
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to duplicate project";
-      toast.error(errorMessage);
-    }
-  };
-
   const fetchProjects = useCallback(async (loadMore = false) => {
     if (!currentUser) return;
     
@@ -228,8 +192,13 @@ const Projects = () => {
       let baseQuery = query(projectsRef, where("userId", "==", currentUser.uid));
       
       if (filterBy !== 'all') {
-        const statusValue = filterBy.toUpperCase();
-        baseQuery = query(baseQuery, where("status", "==", statusValue));
+        // aiStatus values: "completed", "processing"/"pending", "failed"
+        const statusMap: Record<string, string> = {
+          completed: "completed",
+          pending: "processing",
+          failed: "failed",
+        };
+        baseQuery = query(baseQuery, where("aiStatus", "==", statusMap[filterBy] || filterBy));
       }
       
       let sortedQuery;
@@ -333,74 +302,6 @@ const Projects = () => {
       </PageContainer>
     );
   }
-
-  const ProjectActionMenu = ({ projectId }: { projectId: string }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    
-    return (
-      <div className={`${isOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
-        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Open menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent 
-            align="end"
-            onCloseAutoFocus={(e) => {
-              // Prevent focus issues when closing
-              e.preventDefault();
-            }}
-          >
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsOpen(false);
-                navigate(`/project/${projectId}`);
-              }}
-            >
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsOpen(false);
-                handleDuplicateProject(projectId);
-              }}
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Duplicate
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              className="text-destructive focus:text-destructive"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsOpen(false);
-                setProjectToDelete(projectId);
-              }}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    );
-  };
 
   // Signed in view
   return (
@@ -576,7 +477,6 @@ const Projects = () => {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                      <ProjectActionMenu projectId={projectData.id} />
                     </div>
                     <ProjectCard 
                       project={projectData as import('@/components/projects/ProjectCard').Project} 
