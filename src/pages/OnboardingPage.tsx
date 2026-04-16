@@ -229,7 +229,7 @@ const OnboardingPage = () => {
       setCurrentStep(currentStep - 1);
       setSubmissionError(null);
     } else {
-      navigate("/home");
+      navigate("/");
     }
   };
 

@@ -3,7 +3,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import Index from "./pages/Index";
 import LandingPage from "./pages/LandingPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
@@ -61,7 +60,7 @@ const App = () => {
 
               {/* Protected routes */}
               <Route element={<ProtectedRoute />}>
-                <Route path="/home" element={<Index />} />
+                <Route path="/home" element={<Navigate to="/" replace />} />
                 <Route path="/onboarding" element={<OnboardingPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/subscription" element={<SubscriptionPage />} />

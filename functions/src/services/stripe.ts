@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Stripe from "stripe";
-import { SecretManagerServiceClient } from "@google-cloud/secret-manager";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
@@ -11,33 +10,18 @@ const FREE_GENERATION_LIMIT = 2;
 
 let stripeClient: InstanceType<typeof Stripe> | null = null;
 
-async function getStripeSecretKey(): Promise<string> {
-    const secretClient = new SecretManagerServiceClient();
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT || "517067540669";
-    const [version] = await secretClient.accessSecretVersion({
-        name: `projects/${projectId}/secrets/stripe-secret-key/versions/latest`,
-    });
-    const key = version.payload?.data?.toString();
-    if (!key) throw new Error("Stripe secret key not found in Secret Manager");
-    return key;
-}
-
-async function getStripeWebhookSecret(): Promise<string> {
-    const secretClient = new SecretManagerServiceClient();
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT || "517067540669";
-    const [version] = await secretClient.accessSecretVersion({
-        name: `projects/${projectId}/secrets/stripe-webhook-secret/versions/latest`,
-    });
-    const secret = version.payload?.data?.toString();
-    if (!secret) throw new Error("Stripe webhook secret not found in Secret Manager");
-    return secret;
-}
-
 export async function getStripe(): Promise<InstanceType<typeof Stripe>> {
     if (stripeClient) return stripeClient;
-    const key = await getStripeSecretKey();
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) throw new Error("STRIPE_SECRET_KEY environment variable not set");
     stripeClient = new Stripe(key, { apiVersion: "2026-03-25.dahlia" as any });
     return stripeClient;
+}
+
+function getStripeWebhookSecret(): string {
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET environment variable not set");
+    return secret;
 }
 
 // ── Checkout & Portal ────────────────────────────────────────────────────────
@@ -149,7 +133,7 @@ export async function verifyAndParseWebhook(
     rawBody: Buffer,
     signature: string
 ): Promise<any> {
-    const webhookSecret = await getStripeWebhookSecret();
+    const webhookSecret = getStripeWebhookSecret();
     const stripe = await getStripe();
     return stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
 }

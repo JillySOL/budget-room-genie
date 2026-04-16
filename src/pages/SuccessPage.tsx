@@ -38,7 +38,7 @@ export default function SuccessPage() {
             Generate My First Renovation
           </Button>
         </Link>
-        <Link to="/home">
+        <Link to="/">
           <Button variant="outline" className="w-full">
             Go to Home
           </Button>

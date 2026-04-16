@@ -6,7 +6,7 @@ export const BottomNav = () => {
   const location = useLocation();
   const { currentUser } = useAuth();
 
-  const homePath = currentUser ? "/home" : "/";
+  const homePath = "/";
 
   const isActive = (path: string) => location.pathname === path;
 
