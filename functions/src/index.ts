@@ -17,6 +17,14 @@ import sharp from 'sharp';
 import { getNanoBananaApiKey, generateImageWithNanoBanana } from './services/nanobanana';
 import { canUserGenerateDesign, getUserSubscription, subscriptionPlans, SubscriptionPlanType } from './services/subscriptions';
 import { generateDIYSuggestionsWithAI } from './services/openai';
+import {
+    createCheckoutSession,
+    createPortalSession,
+    verifyAndParseWebhook,
+    handleWebhookEvent,
+    checkCanGenerate,
+    incrementGenerationCount,
+} from './services/stripe';
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
@@ -355,6 +363,26 @@ export const generateRenovationSuggestions = onDocumentCreated(
         return;
     }
 
+    // --- Usage Gating (server-side enforcement) ---
+    const userId = projectData.userId as string;
+    if (userId) {
+        const usage = await checkCanGenerate(userId);
+        if (!usage.canGenerate) {
+            logger.info(`User ${userId} has hit generation limit (${usage.generationsUsed}/${usage.generationsLimit})`);
+            await projectRef.update({
+                aiStatus: "paywall_required",
+                aiError: "Generation limit reached. Please upgrade to continue.",
+                aiProcessedAt: FieldValue.serverTimestamp(),
+            }).catch(e => logger.error("Firestore update failed (paywall):", e));
+            return;
+        }
+        // Increment counter for free users only (paid users have unlimited)
+        if (!usage.isPro) {
+            await incrementGenerationCount(userId);
+            logger.info(`Incremented generation count for free user ${userId}: ${usage.generationsUsed + 1}/${usage.generationsLimit}`);
+        }
+    }
+
     let apiKey: string;
     try {
         // --- Get API Key ---
@@ -533,6 +561,84 @@ The output must look like a professional real estate or interior design photogra
 
 import { enhanceDIYDescriptions } from './enhanceDIYDescriptions';
 export { enhanceDIYDescriptions };
+
+// ── Stripe: create Checkout Session ─────────────────────────────────────────
+export const stripeCreateCheckout = onCall({ maxInstances: 10 }, async (request) => {
+    if (!request.auth) throw new Error("Authentication required");
+    const { planId, successUrl, cancelUrl, fbp, fbc } = request.data as {
+        planId: "monthly" | "annual";
+        successUrl: string;
+        cancelUrl: string;
+        fbp?: string;
+        fbc?: string;
+    };
+    if (!planId || !successUrl || !cancelUrl) throw new Error("planId, successUrl, and cancelUrl are required");
+
+    const url = await createCheckoutSession({
+        userId: request.auth.uid,
+        email: request.auth.token.email || "",
+        planId,
+        successUrl,
+        cancelUrl,
+        fbp,
+        fbc,
+    });
+    return { url };
+});
+
+// ── Stripe: create Customer Portal Session ───────────────────────────────────
+export const stripeCreatePortal = onCall({ maxInstances: 10 }, async (request) => {
+    if (!request.auth) throw new Error("Authentication required");
+    const { returnUrl } = request.data as { returnUrl: string };
+    if (!returnUrl) throw new Error("returnUrl is required");
+
+    const url = await createPortalSession({
+        userId: request.auth.uid,
+        returnUrl,
+    });
+    return { url };
+});
+
+// ── Stripe: check if user can generate ──────────────────────────────────────
+export const stripeCheckCanGenerate = onCall({ maxInstances: 10 }, async (request) => {
+    if (!request.auth) throw new Error("Authentication required");
+    const result = await checkCanGenerate(request.auth.uid);
+    return result;
+});
+
+// ── Stripe: webhook (HTTP endpoint, NOT callable) ────────────────────────────
+export const stripeWebhook = onRequest(
+    { maxInstances: 10, timeoutSeconds: 60 },
+    async (req, res) => {
+        if (req.method !== "POST") {
+            res.status(405).send("Method not allowed");
+            return;
+        }
+
+        const signature = req.headers["stripe-signature"] as string;
+        if (!signature) {
+            res.status(400).send("Missing Stripe signature");
+            return;
+        }
+
+        try {
+            // req.rawBody is a Buffer provided by Firebase Functions
+            const rawBody = (req as unknown as { rawBody: Buffer }).rawBody;
+            if (!rawBody) {
+                res.status(400).send("Missing raw body");
+                return;
+            }
+
+            const event = await verifyAndParseWebhook(rawBody, signature);
+            await handleWebhookEvent(event);
+            res.json({ received: true });
+        } catch (err: unknown) {
+            const e = err as Error;
+            logger.error("Stripe webhook error:", e.message);
+            res.status(400).send(`Webhook Error: ${e.message}`);
+        }
+    }
+);
 
 export const checkUserSubscription = onCall({
   maxInstances: 10,

@@ -12,6 +12,7 @@ import OnboardingPage from "./pages/OnboardingPage";
 import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
+import SuccessPage from "./pages/SuccessPage";
 import { BottomNav } from "./components/navigation/BottomNav";
 import { Loader2 } from 'lucide-react';
 
@@ -68,6 +69,7 @@ const App = () => {
                 <Route path="/onboarding" element={<OnboardingPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/subscription" element={<SubscriptionPage />} />
+                <Route path="/success" element={<SuccessPage />} />
                 <Route path="/project/:id" element={<ProjectDetailPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
               </Route>

@@ -9,6 +9,7 @@ import { doc, onSnapshot, DocumentData, addDoc, collection, serverTimestamp } fr
 import { useAuth } from "@/context/AuthContext";
 import { toast } from 'sonner';
 import { Badge } from "@/components/ui/badge";
+import PaywallModal from "@/components/ui-custom/PaywallModal";
 
 interface DIYSuggestion {
   item: string;
@@ -47,6 +48,7 @@ const ProjectDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(loadingMessages[0]);
   const [isGeneratingAlternative, setIsGeneratingAlternative] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const prevStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -191,7 +193,8 @@ const ProjectDetailPage = () => {
   const isAiProcessing = aiStatus === "processing" || aiStatus === "generating_image";
   const isAiPending = !aiStatus || aiStatus === "pending";
   const isAiFailed = aiStatus === "failed";
-  const showAiState = isAiProcessing || isAiPending || isAiFailed || !hasGeneratedImage;
+  const isPaywallRequired = aiStatus === "paywall_required";
+  const showAiState = isAiProcessing || isAiPending || isAiFailed || isPaywallRequired || !hasGeneratedImage;
 
   const aiSuggestions: DIYSuggestion[] = projectData.aiSuggestions || [];
   const totalEstimatedCost = projectData.aiTotalEstimatedCost || 0;
@@ -202,6 +205,8 @@ const ProjectDetailPage = () => {
   const renovationType = projectData.renovationType || "";
 
   return (
+    <>
+    <PaywallModal open={showPaywall} onClose={() => setShowPaywall(false)} />
     <PageContainer className="transition-opacity duration-500 ease-in-out opacity-100">
       <div className="flex items-center mb-6">
         <Link to="/">
@@ -274,7 +279,9 @@ const ProjectDetailPage = () => {
                     <Loader2 className="h-8 w-8 animate-spin text-budget-accent" />
                   </div>
                   <p className="text-sm text-center font-medium text-gray-700 dark:text-gray-300">
-                    {isAiProcessing
+                    {isPaywallRequired
+                      ? "Upgrade to Pro to generate this renovation."
+                      : isAiProcessing
                       ? currentLoadingMessage
                       : isAiFailed
                       ? "Unable to generate design. Please try again."
@@ -287,6 +294,15 @@ const ProjectDetailPage = () => {
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">This may take up to a minute...</p>
                     </>
+                  )}
+                  {isPaywallRequired && (
+                    <Button
+                      size="sm"
+                      className="mt-3 w-full bg-budget-accent hover:bg-budget-accent/90"
+                      onClick={() => setShowPaywall(true)}
+                    >
+                      Upgrade to Pro
+                    </Button>
                   )}
                   {isAiFailed && projectData.aiError && (
                     <p className="text-xs text-red-500 mt-2 text-center">Error: {projectData.aiError}</p>
@@ -372,6 +388,7 @@ const ProjectDetailPage = () => {
         </div>
       </div>
     </PageContainer>
+    </>
   );
 };
 

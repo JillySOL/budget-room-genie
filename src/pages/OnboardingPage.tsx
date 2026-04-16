@@ -9,12 +9,14 @@ import { Progress } from "@/components/ui/progress";
 import Logo from "@/components/ui-custom/Logo";
 import StyleChip from "@/components/ui-custom/StyleChip";
 import { useAuth } from "@/context/AuthContext";
-import { db, storage } from "@/firebase-config";
+import { db, storage, functions } from "@/firebase-config";
 import { collection, addDoc, serverTimestamp, query, where, getDocs, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { httpsCallable } from "firebase/functions";
 import { toast as sonnerToast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
 import ExistingPhotoSelector from "@/components/onboarding/ExistingPhotoSelector";
+import PaywallModal from "@/components/ui-custom/PaywallModal";
 
 const TOTAL_STEPS = 6;
 
@@ -31,6 +33,7 @@ const OnboardingPage = () => {
   const [existingProjects, setExistingProjects] = useState<QueryDocumentSnapshot<DocumentData>[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [userData, setUserData] = useState({
     roomType: "",
@@ -182,6 +185,15 @@ const OnboardingPage = () => {
 
       if (!finalImageURL) throw new Error("Image URL could not be determined after potential upload.");
 
+      // Check generation limit before creating the project
+      const checkFn = httpsCallable<void, { canGenerate: boolean }>(functions, "stripeCheckCanGenerate");
+      const usageResult = await checkFn();
+      if (!usageResult.data.canGenerate) {
+        setShowPaywall(true);
+        setIsUploading(false);
+        return;
+      }
+
       sonnerToast.info("Saving project details...");
       const projectData = {
         ...userData,
@@ -237,6 +249,8 @@ const OnboardingPage = () => {
   const hasExistingPhotos = existingProjects.length > 0;
 
   return (
+    <>
+    <PaywallModal open={showPaywall} onClose={() => setShowPaywall(false)} />
     <PageContainer className="flex flex-col min-h-screen">
       <div className="flex items-center justify-between mb-4">
         <Button variant="ghost" size="icon" onClick={handleBack}>
@@ -516,6 +530,7 @@ const OnboardingPage = () => {
         </div>
       </div>
     </PageContainer>
+    </>
   );
 };
 
