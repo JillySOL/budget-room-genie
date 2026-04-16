@@ -85,17 +85,17 @@ export function ProjectCard({ project }: ProjectCardProps) {
     timeAgo = "just now";
   }
 
+  // Get title from either title or projectName field
+  const displayTitle = project.title || project.projectName || 'Untitled Project';
+
+  // Get status from either status or aiStatus field
+  const displayStatus = project.status || project.aiStatus || 'PENDING';
+
   // Show the after (AI-generated) image when completed, before otherwise
   const isCompleted = displayStatus === 'COMPLETE' || displayStatus === 'completed';
   const imageUrl = (isCompleted && project.aiGeneratedImageURL)
     ? project.aiGeneratedImageURL
     : project.thumbnailUrl || project.uploadedImageURL || '/placeholder-image.png';
-  
-  // Get title from either title or projectName field
-  const displayTitle = project.title || project.projectName || 'Untitled Project';
-  
-  // Get status from either status or aiStatus field
-  const displayStatus = project.status || project.aiStatus || 'PENDING';
   
   // Get total cost from either totalCost or aiTotalEstimatedCost
   const displayCost = project.totalCost ?? project.aiTotalEstimatedCost ?? 0;
