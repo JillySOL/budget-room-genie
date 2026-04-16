@@ -2,10 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Loader2, PlusCircle, RefreshCw, Share2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Download, Loader2, PlusCircle, RefreshCw, Share2, SendHorizonal, Sparkles } from "lucide-react";
 import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter.tsx";
-import { db } from "@/firebase-config";
+import { db, functions } from "@/firebase-config";
 import { doc, onSnapshot, DocumentData, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from 'sonner';
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +51,8 @@ const ProjectDetailPage = () => {
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(loadingMessages[0]);
   const [isGeneratingAlternative, setIsGeneratingAlternative] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [chatMessage, setChatMessage] = useState("");
+  const [isSubmittingChat, setIsSubmittingChat] = useState(false);
   const prevStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -150,6 +154,44 @@ const ProjectDetailPage = () => {
     } catch {
       toast.error("Failed to generate alternative. Please try again.");
       setIsGeneratingAlternative(false);
+    }
+  };
+
+  const handleChatSubmit = async () => {
+    const message = chatMessage.trim();
+    if (!message || !projectData || !currentUser) return;
+    setIsSubmittingChat(true);
+    try {
+      // Check generation limit before creating the doc
+      const checkFn = httpsCallable<void, { canGenerate: boolean }>(functions, "stripeCheckCanGenerate");
+      const usageResult = await checkFn();
+      if (!usageResult.data.canGenerate) {
+        setShowPaywall(true);
+        setIsSubmittingChat(false);
+        return;
+      }
+      const newDoc = await addDoc(collection(db, "projects"), {
+        uploadedImageURL: projectData.aiGeneratedImageURL,  // AI result becomes new input
+        imageAspectRatio: projectData.imageAspectRatio || "4:3",
+        roomType: projectData.roomType,
+        budget: projectData.budget,
+        style: projectData.style,
+        renovationType: projectData.renovationType,
+        chatPrompt: message,
+        parentProjectId: id,
+        userId: currentUser.uid,
+        projectName: `${projectData.projectName || 'My Project'} · Refined`,
+        createdAt: serverTimestamp(),
+        // Pre-copy suggestions so the result page isn't empty while generating
+        aiSuggestions: projectData.aiSuggestions || [],
+        aiTotalEstimatedCost: projectData.aiTotalEstimatedCost || 0,
+        aiEstimatedValueAdded: projectData.aiEstimatedValueAdded || 0,
+      });
+      setChatMessage("");
+      navigate(`/project/${newDoc.id}`);
+    } catch {
+      toast.error("Failed to submit. Please try again.");
+      setIsSubmittingChat(false);
     }
   };
 
@@ -363,9 +405,53 @@ const ProjectDetailPage = () => {
             </div>
           ) : null}
 
+          {/* Parent project link */}
+          {projectData.parentProjectId && (
+            <div className="mt-4">
+              <Link to={`/project/${projectData.parentProjectId}`} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                <ArrowLeft className="h-3 w-3" /> Back to original
+              </Link>
+            </div>
+          )}
+
+          {/* Chat refinement input — shown after generation completes */}
+          {!showAiState && (
+            <div className="mt-6 rounded-xl border bg-card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="h-4 w-4 text-budget-accent" />
+                <p className="font-semibold text-sm">Refine this design</p>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Describe a specific change — "make the walls darker", "add a plant in the corner", "change sofa to white leather".
+              </p>
+              <div className="flex gap-2">
+                <Textarea
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  placeholder="What would you like to change?"
+                  className="resize-none text-sm min-h-[72px]"
+                  maxLength={300}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleChatSubmit();
+                  }}
+                />
+                <Button
+                  className="shrink-0 self-end bg-budget-accent hover:bg-budget-accent/90 gap-1.5"
+                  onClick={handleChatSubmit}
+                  disabled={!chatMessage.trim() || isSubmittingChat}
+                >
+                  {isSubmittingChat
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <SendHorizonal className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 text-right">{chatMessage.length}/300 · Cmd+Enter to send</p>
+            </div>
+          )}
+
           {/* Bottom CTAs */}
           {!showAiState && (
-            <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="mt-4 flex flex-col sm:flex-row gap-3 justify-center">
               <Button
                 variant="outline"
                 className="gap-2"

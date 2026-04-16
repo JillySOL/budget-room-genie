@@ -396,51 +396,77 @@ export const generateRenovationSuggestions = onDocumentCreated(
         const renovationType = projectData.renovationType || "budget";
         const imageAspectRatio = (projectData.imageAspectRatio as string) || "4:3";
         const customInstructions = (projectData.customInstructions as string || "").trim();
+        const chatPrompt = (projectData.chatPrompt as string || "").trim();
+        const isChatIteration = !!chatPrompt;
 
-        // --- Update Firestore: Processing Started (static fallback suggestions) ---
-        const staticResult = generateSuggestionsByRoomType(roomType, budget, style, renovationType);
-        await projectRef.update({
-            aiStatus: "processing",
-            aiSuggestions: staticResult.suggestions || [],
-            aiTotalEstimatedCost: staticResult.totalEstimatedCost || 0,
-            aiEstimatedValueAdded: staticResult.estimatedValueAdded || 0,
-            aiAfterImageDescription: staticResult.afterImageDescription || "",
-            aiError: null,
-            aiProcessedAt: FieldValue.serverTimestamp(),
-        });
-        logger.info("Updated Firestore: processing started (static suggestions written).");
-
-        // --- Generate AI suggestions with GPT-4o (overwrites static fallback) ---
-        try {
-            const aiResult = await generateDIYSuggestionsWithAI(roomType, budget, style, renovationType);
+        // --- Update Firestore: Processing Started ---
+        // For chat iterations, suggestions are pre-copied from the parent — skip regeneration
+        if (!isChatIteration) {
+            const staticResult = generateSuggestionsByRoomType(roomType, budget, style, renovationType);
             await projectRef.update({
-                aiSuggestions: aiResult.suggestions,
-                aiTotalEstimatedCost: aiResult.totalEstimatedCost,
-                aiEstimatedValueAdded: aiResult.estimatedValueAdded,
+                aiStatus: "processing",
+                aiSuggestions: staticResult.suggestions || [],
+                aiTotalEstimatedCost: staticResult.totalEstimatedCost || 0,
+                aiEstimatedValueAdded: staticResult.estimatedValueAdded || 0,
+                aiAfterImageDescription: staticResult.afterImageDescription || "",
+                aiError: null,
+                aiProcessedAt: FieldValue.serverTimestamp(),
             });
-            logger.info(`Updated Firestore with ${aiResult.suggestions.length} AI-generated suggestions.`);
-        } catch (aiSuggestionsError: unknown) {
-            const err = aiSuggestionsError as Error;
-            logger.warn(`AI suggestion generation failed, keeping static fallback. Error: ${err?.message}`);
-            // Static suggestions remain — image generation continues regardless
+            logger.info("Updated Firestore: processing started (static suggestions written).");
+
+            // --- Generate AI suggestions with GPT-4o (overwrites static fallback) ---
+            try {
+                const aiResult = await generateDIYSuggestionsWithAI(roomType, budget, style, renovationType);
+                await projectRef.update({
+                    aiSuggestions: aiResult.suggestions,
+                    aiTotalEstimatedCost: aiResult.totalEstimatedCost,
+                    aiEstimatedValueAdded: aiResult.estimatedValueAdded,
+                });
+                logger.info(`Updated Firestore with ${aiResult.suggestions.length} AI-generated suggestions.`);
+            } catch (aiSuggestionsError: unknown) {
+                const err = aiSuggestionsError as Error;
+                logger.warn(`AI suggestion generation failed, keeping static fallback. Error: ${err?.message}`);
+            }
+        } else {
+            // Chat iteration — just mark processing, keep pre-copied suggestions
+            await projectRef.update({
+                aiStatus: "processing",
+                aiError: null,
+                aiProcessedAt: FieldValue.serverTimestamp(),
+            });
+            logger.info(`Chat iteration detected. Prompt: "${chatPrompt}"`);
         }
 
-        // --- Image Generation Steps ---
-        // NanoBanana Pro accepts image URLs directly - no need to download/re-upload
-        // Use the Firebase Storage URL directly (it's already publicly accessible)
+        // --- Image Generation ---
         const publicImageUrl = imageUrl;
-        logger.info(`Using Firebase Storage URL directly for NanoBanana Pro: ${publicImageUrl}`);
+        logger.info(`Using image URL for NanoBanana Pro: ${publicImageUrl}`);
 
-        // Build renovation scope based on type
-        const budgetNum = parseInt(budget, 10) || 500;
-        const renovationScopeMap: Record<string, string> = {
-            budget: `BUDGET FLIP (under $${budgetNum}): Make only affordable, high-impact cosmetic changes. This means: fresh paint on walls, swap soft furnishings (cushions, curtains, rugs), update small décor items and accessories, add or rearrange plants. Do NOT change flooring, cabinetry, appliances, or any fixed elements. Keep all furniture in place.`,
-            full: `FULL RENOVATION (up to $${budgetNum}): Transform the entire room. Replace flooring, update or repaint cabinetry, swap all furniture, install new light fixtures, update window treatments, add architectural features if appropriate. Make it look like a completely professional renovation.`,
-            visual: `VISUALIZE (dream scenario): Show the most beautiful, aspirational version of this room in the ${style} style with no budget constraints. Replace everything that would benefit from it — flooring, furniture, lighting, fixtures, décor — while keeping the room's footprint and architectural structure.`,
-        };
-        const renovationScope = renovationScopeMap[renovationType] || renovationScopeMap["budget"];
+        let generationPrompt: string;
 
-        const generationPrompt = `You are a professional interior designer and photo editor. Transform the provided ${roomType} photo into a realistic renovation result.
+        if (isChatIteration) {
+            // Targeted refinement prompt — only change what was asked
+            generationPrompt = `You are a professional interior design photo editor. You are given a photo of a renovated room.
+
+TASK: Make ONLY the following change to this room: "${chatPrompt}"
+
+STRICT RULES:
+1. Change ONLY what was explicitly requested. Leave everything else exactly as it is.
+2. Keep the IDENTICAL camera angle, perspective, focal length, and room geometry.
+3. Keep all unchanged elements — furniture positions, colors, materials, lighting — exactly the same.
+4. The result must look like a real photograph, not a render or illustration.
+5. All changes must blend photorealistically with the existing room.
+6. Do not add or remove anything that was not explicitly requested.`;
+        } else {
+            // Full renovation prompt
+            const budgetNum = parseInt(budget, 10) || 500;
+            const renovationScopeMap: Record<string, string> = {
+                budget: `BUDGET FLIP (under $${budgetNum}): Make only affordable, high-impact cosmetic changes. This means: fresh paint on walls, swap soft furnishings (cushions, curtains, rugs), update small décor items and accessories, add or rearrange plants. Do NOT change flooring, cabinetry, appliances, or any fixed elements. Keep all furniture in place.`,
+                full: `FULL RENOVATION (up to $${budgetNum}): Transform the entire room. Replace flooring, update or repaint cabinetry, swap all furniture, install new light fixtures, update window treatments, add architectural features if appropriate. Make it look like a completely professional renovation.`,
+                visual: `VISUALIZE (dream scenario): Show the most beautiful, aspirational version of this room in the ${style} style with no budget constraints. Replace everything that would benefit from it — flooring, furniture, lighting, fixtures, décor — while keeping the room's footprint and architectural structure.`,
+            };
+            const renovationScope = renovationScopeMap[renovationType] || renovationScopeMap["budget"];
+
+            generationPrompt = `You are a professional interior designer and photo editor. Transform the provided ${roomType} photo into a realistic renovation result.
 
 RENOVATION TYPE: ${renovationScope}
 
@@ -459,6 +485,7 @@ The output must look like a professional real estate or interior design photogra
         ? `\n\nSPECIFIC REQUIREMENTS (highest priority — must be included exactly as described): ${customInstructions}`
         : ""
 }`;
+        }
         
         // Log the complete prompt for debugging
         logger.info("=== GENERATION PROMPT ===");
