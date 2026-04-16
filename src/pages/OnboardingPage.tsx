@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, DollarSign, Camera, Check, Upload, Loader2, Sofa, Bed, UtensilsCrossed, Bath, Monitor, TreePine, Hammer } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Logo from "@/components/ui-custom/Logo";
@@ -16,7 +16,9 @@ import { toast as sonnerToast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
 import ExistingPhotoSelector from "@/components/onboarding/ExistingPhotoSelector";
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
+
+const STEP_NAMES = ["Photo", "Room", "Budget", "Style", "Type", "Brief"];
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
@@ -35,6 +37,7 @@ const OnboardingPage = () => {
     budget: "500",
     style: "",
     renovationType: "",
+    customInstructions: "",
   });
 
   const roomTypes = [
@@ -70,24 +73,19 @@ const OnboardingPage = () => {
 
   useEffect(() => {
     const fetchProjects = async () => {
-      if (!currentUser) {
-        setLoadingProjects(false);
-        return;
-      }
+      if (!currentUser) { setLoadingProjects(false); return; }
       setLoadingProjects(true);
       try {
         const projectsRef = collection(db, "projects");
         const q = query(projectsRef, where("userId", "==", currentUser.uid));
         const querySnapshot = await getDocs(q);
         setExistingProjects(querySnapshot.docs);
-      } catch (err) {         
-        // Silently handle fetch errors
+      } catch {
         sonnerToast.error("Failed to load existing photos.");
       } finally {
         setLoadingProjects(false);
       }
     };
-
     fetchProjects();
   }, [currentUser]);
 
@@ -100,7 +98,6 @@ const OnboardingPage = () => {
         const w = img.naturalWidth;
         const h = img.naturalHeight;
         const ratio = w / h;
-        // Map to nearest NanoBanana Pro supported aspect ratio
         const ratios: { ratio: number; label: string }[] = [
           { ratio: 1 / 1,   label: "1:1"  },
           { ratio: 2 / 3,   label: "2:3"  },
@@ -141,9 +138,7 @@ const OnboardingPage = () => {
     }
   };
 
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
+  const triggerFileInput = () => { fileInputRef.current?.click(); };
 
   const handleSelectExisting = (imageUrl: string) => {
     setSelectedExistingImageUrl(imageUrl);
@@ -164,12 +159,11 @@ const OnboardingPage = () => {
     }
 
     if (!currentUser) {
-      sonnerToast.error("You must be logged in to create a project. Redirecting to login.");
-      setSubmissionError("Authentication error. Please log in again.");
+      sonnerToast.error("You must be logged in to create a project.");
       navigate("/login");
       return;
     }
-    
+
     setIsUploading(true);
     setSubmissionError(null);
 
@@ -183,12 +177,10 @@ const OnboardingPage = () => {
         await uploadBytes(storageRef, finalImageSource);
         finalImageURL = await getDownloadURL(storageRef);
       } else {
-         finalImageURL = finalImageSource;
+        finalImageURL = finalImageSource;
       }
 
-      if (!finalImageURL) {
-        throw new Error("Image URL could not be determined after potential upload.");
-      }
+      if (!finalImageURL) throw new Error("Image URL could not be determined after potential upload.");
 
       sonnerToast.info("Saving project details...");
       const projectData = {
@@ -201,9 +193,8 @@ const OnboardingPage = () => {
       };
 
       const docRef = await addDoc(collection(db, "projects"), projectData);
-      sonnerToast.success("Project created successfully!");
+      sonnerToast.success("Project created! Generating your renovation...");
       navigate(`/project/${docRef.id}`);
-
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to create project. Please try again.";
       setSubmissionError(errorMsg);
@@ -238,13 +229,16 @@ const OnboardingPage = () => {
       case 3: return !userData.budget;
       case 4: return !userData.style;
       case 5: return !userData.renovationType;
+      case 6: return false; // brief is optional
       default: return false;
     }
   };
 
+  const hasExistingPhotos = existingProjects.length > 0;
+
   return (
     <PageContainer className="flex flex-col min-h-screen">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -252,9 +246,20 @@ const OnboardingPage = () => {
         <div className="w-8"></div>
       </div>
 
-      <Progress value={(currentStep / TOTAL_STEPS) * 100} className="w-full mb-4 h-1" />
+      {/* Progress bar + step name */}
+      <div className="mb-5">
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-xs text-muted-foreground font-medium">
+            Step {currentStep} of {TOTAL_STEPS} · {STEP_NAMES[currentStep - 1]}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {Math.round((currentStep / TOTAL_STEPS) * 100)}%
+          </span>
+        </div>
+        <Progress value={(currentStep / TOTAL_STEPS) * 100} className="w-full h-1.5" />
+      </div>
 
-      {/* Selection summary — shows chosen options as the user progresses */}
+      {/* Selection summary strip */}
       {currentStep > 1 && (
         <div className="flex flex-wrap gap-1.5 mb-5">
           {userData.roomType && (
@@ -280,11 +285,14 @@ const OnboardingPage = () => {
         </div>
       )}
 
-      <div className="flex-1 pb-6">
+      {/* Step content — padded so it clears the fixed bottom bar */}
+      <div className="flex-1 pb-28">
         {currentStep === 1 && (
-          <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl font-semibold">Choose a 'before' photo</h2>
-            <p className="text-sm text-muted-foreground">Upload a new photo or select one from your gallery.</p>
+          <div className="space-y-5 animate-fade-in">
+            <div>
+              <h2 className="text-xl font-semibold">Choose a 'before' photo</h2>
+              <p className="text-sm text-muted-foreground mt-1">Upload a new photo or select one from your gallery.</p>
+            </div>
 
             <Input
               id="file-upload"
@@ -295,33 +303,35 @@ const OnboardingPage = () => {
               ref={fileInputRef}
             />
 
-            {imagePreviewUrl && (
-              <div className="mt-4">
-                <p className="text-sm font-medium mb-2 text-center">Selected Photo:</p>
-                <div className="relative w-full max-w-sm mx-auto h-48 bg-muted rounded-lg overflow-hidden border dark:border-gray-700">
-                  <img src={imagePreviewUrl} alt="Selected preview" className="w-full h-full object-contain" />
-                </div>
-                {selectedFile && !isUploading && (
-                  <p className="text-xs text-center text-muted-foreground mt-1">New Upload: {selectedFile.name}</p>
-                )}
-                {selectedExistingImageUrl && !isUploading && (
-                  <p className="text-xs text-center text-muted-foreground mt-1">Selected from Gallery</p>
-                )}
+            {imagePreviewUrl ? (
+              <div className="w-full rounded-xl overflow-hidden border dark:border-gray-700 bg-muted aspect-[4/3]">
+                <img src={imagePreviewUrl} alt="Selected preview" className="w-full h-full object-cover" />
               </div>
+            ) : (
+              <button
+                onClick={triggerFileInput}
+                className="w-full aspect-[4/3] rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center gap-3 text-muted-foreground hover:border-budget-accent/50 hover:text-budget-accent transition-colors"
+              >
+                <Upload className="h-8 w-8" />
+                <span className="text-sm font-medium">Tap to upload a photo</span>
+                <span className="text-xs">JPG, PNG supported</span>
+              </button>
             )}
-            
-            <Button
-              variant={imagePreviewUrl ? "secondary" : "default"}
-              className="w-full gap-2 py-3 text-base"
-              onClick={triggerFileInput}
-              disabled={isUploading}
-            >
-              <Upload className="h-5 w-5" />
-              <span>{selectedFile ? "Change Uploaded Photo" : "Upload New Photo"}</span>
-            </Button>
 
-            {currentUser && (
-              <ExistingPhotoSelector 
+            {imagePreviewUrl && (
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={triggerFileInput}
+                disabled={isUploading}
+              >
+                <Upload className="h-4 w-4" />
+                {selectedFile ? "Change Photo" : "Upload Different Photo"}
+              </Button>
+            )}
+
+            {currentUser && hasExistingPhotos && (
+              <ExistingPhotoSelector
                 projects={existingProjects}
                 isLoading={loadingProjects}
                 selectedUrl={selectedExistingImageUrl}
@@ -330,25 +340,19 @@ const OnboardingPage = () => {
             )}
 
             {submissionError && (
-              <div className="mt-4 text-center p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm border border-red-200 dark:border-red-800/50">
+              <div className="text-center p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm border border-red-200 dark:border-red-800/50">
                 {submissionError}
-              </div>
-            )}
-
-            {isUploading && (
-              <div className="flex items-center justify-center text-sm text-muted-foreground gap-2 pt-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Processing project...</span>
               </div>
             )}
           </div>
         )}
 
         {currentStep === 2 && (
-          <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl font-semibold">What room are you flipping?</h2>
-            <p className="text-sm text-muted-foreground">Select the room type</p>
-            
+          <div className="space-y-5 animate-fade-in">
+            <div>
+              <h2 className="text-xl font-semibold">What room are you flipping?</h2>
+              <p className="text-sm text-muted-foreground mt-1">Select the room type</p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               {roomTypes.map((room) => (
                 <div
@@ -380,10 +384,11 @@ const OnboardingPage = () => {
         )}
 
         {currentStep === 3 && (
-          <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl font-semibold">What's your budget?</h2>
-            <p className="text-sm text-muted-foreground">We'll customize suggestions to fit</p>
-            
+          <div className="space-y-5 animate-fade-in">
+            <div>
+              <h2 className="text-xl font-semibold">What's your budget?</h2>
+              <p className="text-sm text-muted-foreground mt-1">We'll customise suggestions to fit</p>
+            </div>
             <div className="space-y-3">
               {budgetOptions.map((option) => (
                 <div
@@ -410,10 +415,11 @@ const OnboardingPage = () => {
         )}
 
         {currentStep === 4 && (
-          <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl font-semibold">What style do you prefer?</h2>
-            <p className="text-sm text-muted-foreground">Pick a design direction</p>
-            
+          <div className="space-y-5 animate-fade-in">
+            <div>
+              <h2 className="text-xl font-semibold">What style do you prefer?</h2>
+              <p className="text-sm text-muted-foreground mt-1">Pick a design direction</p>
+            </div>
             <div className="flex flex-wrap gap-2">
               {styleOptions.map((style) => (
                 <StyleChip
@@ -429,10 +435,11 @@ const OnboardingPage = () => {
         )}
 
         {currentStep === 5 && (
-          <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl font-semibold">What type of renovation?</h2>
-            <p className="text-sm text-muted-foreground">Choose the approach</p>
-            
+          <div className="space-y-5 animate-fade-in">
+            <div>
+              <h2 className="text-xl font-semibold">What type of renovation?</h2>
+              <p className="text-sm text-muted-foreground mt-1">Choose the approach</p>
+            </div>
             <div className="space-y-3">
               {renovationTypes.map((type) => (
                 <div
@@ -446,7 +453,7 @@ const OnboardingPage = () => {
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     userData.renovationType === type.id ? "bg-budget-accent text-white" : "bg-gray-100 dark:bg-gray-800"
-                  } relative`}>
+                  } relative shrink-0`}>
                     {type.icon}
                     {userData.renovationType === type.id && (
                       <div className="absolute -top-1 -right-1 w-4 h-4 bg-white dark:bg-gray-950 rounded-full flex items-center justify-center border border-budget-accent">
@@ -463,15 +470,48 @@ const OnboardingPage = () => {
             </div>
           </div>
         )}
+
+        {currentStep === 6 && (
+          <div className="space-y-5 animate-fade-in">
+            <div>
+              <h2 className="text-xl font-semibold">Any specific requests?</h2>
+              <p className="text-sm text-muted-foreground mt-1">Optional — describe exactly what you want included. The AI will prioritise your instructions.</p>
+            </div>
+            <Textarea
+              placeholder={`e.g. "Insert a frameless glass shower screen", "Keep the existing timber floors", "Add a kitchen island with bar stools"`}
+              className="min-h-[160px] text-sm resize-none"
+              value={userData.customInstructions}
+              onChange={(e) => setUserData({ ...userData, customInstructions: e.target.value })}
+              maxLength={500}
+            />
+            {userData.customInstructions.length > 0 && (
+              <p className="text-xs text-muted-foreground text-right">{userData.customInstructions.length}/500</p>
+            )}
+            <div className="rounded-lg bg-muted p-3 text-xs text-muted-foreground space-y-1">
+              <p className="font-medium text-foreground">Tips for best results:</p>
+              <p>· Be specific about materials or finishes ("white subway tiles", "oak flooring")</p>
+              <p>· Mention what to keep ("keep the existing window")</p>
+              <p>· Describe fixtures directly ("wall-mounted vanity with LED mirror")</p>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="mt-auto pt-4 border-t bg-background dark:border-gray-800 sticky bottom-0 px-4 py-3 -mx-4">
+      {/* Fixed bottom bar — sits above the BottomNav (which is fixed at bottom-0) */}
+      <div className="fixed bottom-16 left-0 right-0 z-40 bg-background border-t border-gray-200 dark:border-gray-800 px-4 py-3">
         <div className="flex justify-between items-center max-w-md mx-auto">
-          <Button variant="ghost" onClick={handleBack} disabled={isUploading}> 
+          <Button variant="ghost" onClick={handleBack} disabled={isUploading}>
             Back
           </Button>
-          <Button onClick={currentStep === TOTAL_STEPS ? handleSaveProject : handleNextStep} disabled={isNextDisabled() || isUploading}> 
-            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : (currentStep === TOTAL_STEPS ? "Generate My Renovation" : "Next")}
+          <Button
+            onClick={currentStep === TOTAL_STEPS ? handleSaveProject : handleNextStep}
+            disabled={isNextDisabled() || isUploading}
+          >
+            {isUploading
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : currentStep === TOTAL_STEPS
+              ? "Generate My Renovation"
+              : "Next"}
           </Button>
         </div>
       </div>

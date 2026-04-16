@@ -459,6 +459,7 @@ const Projects = () => {
                   aiTotalEstimatedCost: data.aiTotalEstimatedCost,
                   thumbnailUrl: data.thumbnailUrl,
                   uploadedImageURL: data.uploadedImageURL,
+                  aiGeneratedImageURL: data.aiGeneratedImageURL,
                 }; 
                 
                 return (

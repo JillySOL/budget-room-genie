@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Search, Percent, User, LogIn } from "lucide-react";
+import { Home, Search, FolderOpen, User, LogIn } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export const BottomNav = () => {
@@ -34,7 +34,7 @@ export const BottomNav = () => {
       
       {currentUser && (
         <Link to="/projects" className="flex flex-col items-center">
-          <Percent className={`h-6 w-6 ${isActive('/projects') ? 'text-budget-accent' : 'text-gray-500'}`} />
+          <FolderOpen className={`h-6 w-6 ${isActive('/projects') ? 'text-budget-accent' : 'text-gray-500'}`} />
           <span className={`text-xs mt-1 ${isActive('/projects') ? 'text-budget-accent font-medium' : 'text-gray-500'}`}>Projects</span>
         </Link>
       )}

@@ -367,6 +367,7 @@ export const generateRenovationSuggestions = onDocumentCreated(
         const roomType = projectData.roomType || "room";
         const renovationType = projectData.renovationType || "budget";
         const imageAspectRatio = (projectData.imageAspectRatio as string) || "4:3";
+        const customInstructions = (projectData.customInstructions as string || "").trim();
 
         // --- Update Firestore: Processing Started (static fallback suggestions) ---
         const staticResult = generateSuggestionsByRoomType(roomType, budget, style, renovationType);
@@ -425,7 +426,11 @@ ABSOLUTE REQUIREMENTS — follow these exactly:
 5. Maintain realistic scale and proportions for all furniture and objects.
 6. Blend all changes seamlessly — shadows, reflections, and textures must be photorealistic.
 
-The output must look like a professional real estate or interior design photograph of the same room after renovation.`;
+The output must look like a professional real estate or interior design photograph of the same room after renovation.${
+    customInstructions
+        ? `\n\nSPECIFIC REQUIREMENTS (highest priority — must be included exactly as described): ${customInstructions}`
+        : ""
+}`;
         
         // Log the complete prompt for debugging
         logger.info("=== GENERATION PROMPT ===");

@@ -33,8 +33,9 @@ export interface Project {
   aiStatus?: 'pending' | 'processing' | 'completed' | 'failed' | string;
   totalCost?: number;
   aiTotalEstimatedCost?: number;
-  thumbnailUrl?: string; // Added pre-signed URL field
-  uploadedImageURL?: string; // Alternative field name
+  thumbnailUrl?: string;
+  uploadedImageURL?: string;
+  aiGeneratedImageURL?: string;
 }
 
 interface ProjectCardProps {
@@ -84,8 +85,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
     timeAgo = "just now";
   }
 
-  // Use the pre-signed thumbnailUrl directly, or fallback to uploadedImageURL
-  const imageUrl = project.thumbnailUrl || project.uploadedImageURL || '/placeholder-image.png';
+  // Show the after (AI-generated) image when completed, before otherwise
+  const isCompleted = displayStatus === 'COMPLETE' || displayStatus === 'completed';
+  const imageUrl = (isCompleted && project.aiGeneratedImageURL)
+    ? project.aiGeneratedImageURL
+    : project.thumbnailUrl || project.uploadedImageURL || '/placeholder-image.png';
   
   // Get title from either title or projectName field
   const displayTitle = project.title || project.projectName || 'Untitled Project';

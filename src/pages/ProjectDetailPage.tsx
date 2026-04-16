@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Loader2, PlusCircle } from "lucide-react";
+import { ArrowLeft, Download, Loader2, PlusCircle, RefreshCw, Share2 } from "lucide-react";
 import EnhancedBeforeAfter from "@/components/ui-custom/EnhancedBeforeAfter.tsx";
 import { db } from "@/firebase-config";
-import { doc, onSnapshot, DocumentData } from "firebase/firestore";
+import { doc, onSnapshot, DocumentData, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
 import { toast } from 'sonner';
 import { Badge } from "@/components/ui/badge";
 
@@ -39,10 +40,13 @@ const budgetLabel: Record<string, string> = {
 
 const ProjectDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [projectData, setProjectData] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(loadingMessages[0]);
+  const [isGeneratingAlternative, setIsGeneratingAlternative] = useState(false);
   const prevStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -106,6 +110,47 @@ const ProjectDetailPage = () => {
     }
   };
 
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: projectData?.projectName || "My RenoMate Renovation",
+          text: "Check out my AI-generated room renovation!",
+          url: shareUrl,
+        });
+      } catch {
+        // User cancelled share — no error needed
+      }
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copied to clipboard!");
+    }
+  };
+
+  const handleGenerateAlternative = async () => {
+    if (!projectData || !currentUser) return;
+    setIsGeneratingAlternative(true);
+    try {
+      const newDoc = await addDoc(collection(db, "projects"), {
+        uploadedImageURL: projectData.uploadedImageURL,
+        imageAspectRatio: projectData.imageAspectRatio || "4:3",
+        roomType: projectData.roomType,
+        budget: projectData.budget,
+        style: projectData.style,
+        renovationType: projectData.renovationType,
+        customInstructions: projectData.customInstructions || "",
+        userId: currentUser.uid,
+        projectName: `${projectData.projectName || 'My Project'} (Alt)`,
+        createdAt: serverTimestamp(),
+      });
+      navigate(`/project/${newDoc.id}`);
+    } catch {
+      toast.error("Failed to generate alternative. Please try again.");
+      setIsGeneratingAlternative(false);
+    }
+  };
+
   if (loading) {
     return (
       <PageContainer className="flex justify-center items-center min-h-screen">
@@ -166,10 +211,15 @@ const ProjectDetailPage = () => {
         </Link>
         <h1 className="text-xl font-semibold flex-1 truncate">{projectName}</h1>
         {hasGeneratedImage && (
-          <Button variant="outline" size="sm" className="gap-1.5 ml-2 shrink-0" onClick={handleDownload}>
-            <Download className="h-4 w-4" />
-            Download
-          </Button>
+          <div className="flex gap-1.5 ml-2 shrink-0">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleShare} title="Share">
+              <Share2 className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleDownload}>
+              <Download className="h-4 w-4" />
+              Download
+            </Button>
+          </div>
         )}
       </div>
 
@@ -297,13 +347,24 @@ const ProjectDetailPage = () => {
             </div>
           ) : null}
 
-          {/* Bottom CTA */}
+          {/* Bottom CTAs */}
           {!showAiState && (
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={handleGenerateAlternative}
+                disabled={isGeneratingAlternative}
+              >
+                {isGeneratingAlternative
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <RefreshCw className="h-4 w-4" />}
+                Generate Alternative
+              </Button>
               <Link to="/onboarding">
-                <Button className="gap-2">
+                <Button className="gap-2 w-full sm:w-auto">
                   <PlusCircle className="h-4 w-4" />
-                  Start Another Project
+                  New Project
                 </Button>
               </Link>
             </div>
