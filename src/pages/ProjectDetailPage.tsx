@@ -209,7 +209,7 @@ const ProjectDetailPage = () => {
     <PaywallModal open={showPaywall} onClose={() => setShowPaywall(false)} />
     <PageContainer className="transition-opacity duration-500 ease-in-out opacity-100">
       <div className="flex items-center mb-6">
-        <Link to="/">
+        <Link to="/home">
           <Button variant="ghost" size="icon" className="mr-2" aria-label="Back to Home">
             <ArrowLeft className="h-5 w-5" />
           </Button>
