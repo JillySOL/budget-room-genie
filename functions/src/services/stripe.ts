@@ -218,7 +218,7 @@ export async function handleWebhookEvent(event: any): Promise<void> {
 
 // ── Usage gating ─────────────────────────────────────────────────────────────
 
-export async function checkCanGenerate(userId: string): Promise<{
+export async function checkCanGenerate(userId: string, isProFromClaims = false): Promise<{
     canGenerate: boolean;
     generationsUsed: number;
     generationsLimit: number;
@@ -229,7 +229,10 @@ export async function checkCanGenerate(userId: string): Promise<{
     const userData = userDoc.data() || {};
 
     const subStatus = userData.subscription?.status as string | undefined;
-    const isPro = ["active", "trialing"].includes(subStatus || "");
+    // Accept pro status from either Firestore subscription OR the auth custom claim.
+    // The claim is refreshed on the /success page and is faster than the webhook.
+    const isProFromFirestore = ["active", "trialing"].includes(subStatus || "");
+    const isPro = isProFromClaims || isProFromFirestore;
     const generationsUsed = (userData.generationsUsed as number) || 0;
 
     return {

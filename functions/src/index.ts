@@ -647,7 +647,10 @@ export const stripeCreatePortal = onCall({ maxInstances: 10 }, async (request) =
 // ── Stripe: check if user can generate ──────────────────────────────────────
 export const stripeCheckCanGenerate = onCall({ maxInstances: 10 }, async (request) => {
     if (!request.auth) throw new Error("Authentication required");
-    const result = await checkCanGenerate(request.auth.uid);
+    // Check auth custom claim first — refreshed by the /success page after checkout,
+    // faster than waiting for the Firestore webhook sync.
+    const isProFromClaims = (request.auth.token as Record<string, unknown>)?.stripeRole === "pro";
+    const result = await checkCanGenerate(request.auth.uid, isProFromClaims);
     return result;
 });
 

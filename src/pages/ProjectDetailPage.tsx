@@ -31,14 +31,7 @@ const loadingMessages = [
 const renovationTypeLabel: Record<string, string> = {
   budget: "Budget Flip",
   full: "Full Renovation",
-  visual: "Visualize",
-};
-
-const budgetLabel: Record<string, string> = {
-  "300": "Under $300",
-  "500": "Under $500",
-  "1000": "Under $1,000",
-  "2000": "Under $2,000",
+  visual: "Just Visualise",
 };
 
 const ProjectDetailPage = () => {
@@ -272,16 +265,11 @@ const ProjectDetailPage = () => {
 
       <div className="max-w-3xl mx-auto">
         {/* Metadata strip */}
-        {(style || budget || renovationType) && (
+        {(style || renovationType) && (
           <div className="flex flex-wrap gap-2 mb-5">
             {renovationType && (
               <Badge variant="secondary" className="capitalize">
                 {renovationTypeLabel[renovationType] || renovationType}
-              </Badge>
-            )}
-            {budget && (
-              <Badge variant="outline">
-                {budgetLabel[budget] || `$${budget}`}
               </Badge>
             )}
             {style && (
@@ -293,8 +281,8 @@ const ProjectDetailPage = () => {
         )}
 
         <div className="mb-6">
-          {/* Value added badge */}
-          {estimatedValueAdded > 0 && (
+          {/* Value added badge — shown while processing */}
+          {estimatedValueAdded > 0 && showAiState && (
             <div className="flex justify-end mb-3">
               <span className="bg-[#E6F4EA] text-green-800 text-sm font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -362,16 +350,31 @@ const ProjectDetailPage = () => {
             </div>
           ) : null}
 
+          {/* Cost summary card — shown after generation completes */}
+          {!showAiState && (totalEstimatedCost > 0 || estimatedValueAdded > 0) && (
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              {totalEstimatedCost > 0 && (
+                <div className="rounded-xl border bg-card p-4 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Estimated Cost</p>
+                  <p className="text-2xl font-bold text-budget-accent">${totalEstimatedCost.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">DIY total</p>
+                </div>
+              )}
+              {estimatedValueAdded > 0 && (
+                <div className="rounded-xl border bg-[#E6F4EA] dark:bg-green-950/30 border-green-200 dark:border-green-800 p-4 text-center">
+                  <p className="text-xs text-green-700 dark:text-green-400 mb-1">Est. Value Added</p>
+                  <p className="text-2xl font-bold text-green-700 dark:text-green-400">+${estimatedValueAdded.toLocaleString()}</p>
+                  <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">to property value</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* DIY Suggestions */}
           {aiSuggestions.length > 0 ? (
             <div className="bg-card rounded-lg border dark:border-gray-700 shadow-sm overflow-hidden">
               <div className="px-4 sm:px-6 py-4 border-b dark:border-gray-700">
-                <h2 className="font-semibold text-base">
-                  {showAiState ? "Suggested DIY Improvements" : "Your DIY Plan"}
-                </h2>
-                {showAiState && (
-                  <p className="text-xs text-muted-foreground mt-0.5">Ready while your image generates</p>
-                )}
+                <h2 className="font-semibold text-base">Your DIY Plan</h2>
               </div>
               <div className="divide-y dark:divide-gray-700">
                 {aiSuggestions.map((suggestion, index) => (
@@ -391,12 +394,6 @@ const ProjectDetailPage = () => {
                   </div>
                 ))}
               </div>
-              {totalEstimatedCost > 0 && (
-                <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-t dark:border-gray-700 bg-muted/30">
-                  <span className="font-semibold text-sm">Estimated Total</span>
-                  <span className="text-budget-accent text-lg font-bold">${totalEstimatedCost.toLocaleString()}</span>
-                </div>
-              )}
             </div>
           ) : showAiState ? (
             <div className="bg-card rounded-lg border dark:border-gray-700 shadow-sm p-6 flex items-center gap-3 text-muted-foreground">

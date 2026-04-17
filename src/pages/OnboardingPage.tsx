@@ -18,9 +18,16 @@ import { v4 as uuidv4 } from 'uuid';
 import ExistingPhotoSelector from "@/components/onboarding/ExistingPhotoSelector";
 import PaywallModal from "@/components/ui-custom/PaywallModal";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 
-const STEP_NAMES = ["Photo", "Room", "Budget", "Style", "Type", "Brief"];
+const STEP_NAMES = ["Photo", "Room", "Style", "Type", "Brief"];
+
+// Auto-maps renovation type → a budget value used in prompts/suggestions
+const RENOVATION_BUDGET_MAP: Record<string, string> = {
+  budget: "500",
+  full: "3000",
+  visual: "10000",
+};
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
@@ -52,13 +59,6 @@ const OnboardingPage = () => {
     { id: "outdoor", name: "Outdoor", icon: <TreePine className="h-5 w-5" /> },
   ];
 
-  const budgetOptions = [
-    { id: "300", label: "Under $300" },
-    { id: "500", label: "Under $500" },
-    { id: "1000", label: "Under $1,000" },
-    { id: "2000", label: "Under $2,000" },
-  ];
-
   const styleOptions = [
     { id: "minimalist", label: "Minimalist" },
     { id: "modern", label: "Modern" },
@@ -69,9 +69,9 @@ const OnboardingPage = () => {
   ];
 
   const renovationTypes = [
-    { id: "budget", name: "Budget Flip", description: "Quick, affordable DIY makeovers", icon: <DollarSign className="h-5 w-5" /> },
-    { id: "full", name: "Full Renovation", description: "Complete room transformation", icon: <Hammer className="h-5 w-5" /> },
-    { id: "visual", name: "Just Visualize", description: "See ideas without commitment", icon: <Camera className="h-5 w-5" /> },
+    { id: "budget", name: "Budget Flip", description: "Cosmetic-only updates under $500 — paint, accessories & soft furnishings", icon: <DollarSign className="h-5 w-5" /> },
+    { id: "full", name: "Full Renovation", description: "Complete transformation — flooring, cabinetry, fixtures & more", icon: <Hammer className="h-5 w-5" /> },
+    { id: "visual", name: "Just Visualise", description: "Dream version with no budget limit — see what's possible", icon: <Camera className="h-5 w-5" /> },
   ];
 
   useEffect(() => {
@@ -238,10 +238,9 @@ const OnboardingPage = () => {
     switch (currentStep) {
       case 1: return !selectedFile && !selectedExistingImageUrl;
       case 2: return !userData.roomType;
-      case 3: return !userData.budget;
-      case 4: return !userData.style;
-      case 5: return !userData.renovationType;
-      case 6: return false; // brief is optional
+      case 3: return !userData.style;
+      case 4: return !userData.renovationType;
+      case 5: return false; // brief is optional
       default: return false;
     }
   };
@@ -281,17 +280,12 @@ const OnboardingPage = () => {
               {roomTypes.find(r => r.id === userData.roomType)?.name || userData.roomType}
             </span>
           )}
-          {currentStep > 2 && userData.budget && (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-              {budgetOptions.find(b => b.id === userData.budget)?.label || `$${userData.budget}`}
-            </span>
-          )}
-          {currentStep > 3 && userData.style && (
+          {currentStep > 2 && userData.style && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground capitalize">
               {userData.style}
             </span>
           )}
-          {currentStep > 4 && userData.renovationType && (
+          {currentStep > 3 && userData.renovationType && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
               {renovationTypes.find(t => t.id === userData.renovationType)?.name || userData.renovationType}
             </span>
@@ -407,37 +401,6 @@ const OnboardingPage = () => {
         {currentStep === 3 && (
           <div className="space-y-5 animate-fade-in">
             <div>
-              <h2 className="text-xl font-semibold">What's your budget?</h2>
-              <p className="text-sm text-muted-foreground mt-1">We'll customise suggestions to fit</p>
-            </div>
-            <div className="space-y-3">
-              {budgetOptions.map((option) => (
-                <div
-                  key={option.id}
-                  className={`p-4 rounded-lg border ${
-                    userData.budget === option.id
-                      ? "border-budget-accent bg-budget-accent/10"
-                      : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950"
-                  } flex items-center justify-between cursor-pointer transition-all hover:border-budget-accent/50`}
-                  onClick={() => setUserData({ ...userData, budget: option.id })}
-                >
-                  <span className={`font-medium ${userData.budget === option.id ? "text-budget-accent" : "text-foreground"}`}>
-                    {option.label}
-                  </span>
-                  {userData.budget === option.id && (
-                    <div className="w-5 h-5 rounded-full bg-budget-accent flex items-center justify-center">
-                      <Check className="h-3 w-3 text-white" />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {currentStep === 4 && (
-          <div className="space-y-5 animate-fade-in">
-            <div>
               <h2 className="text-xl font-semibold">What style do you prefer?</h2>
               <p className="text-sm text-muted-foreground mt-1">Pick a design direction</p>
             </div>
@@ -455,11 +418,11 @@ const OnboardingPage = () => {
           </div>
         )}
 
-        {currentStep === 5 && (
+        {currentStep === 4 && (
           <div className="space-y-5 animate-fade-in">
             <div>
               <h2 className="text-xl font-semibold">What type of renovation?</h2>
-              <p className="text-sm text-muted-foreground mt-1">Choose the approach</p>
+              <p className="text-sm text-muted-foreground mt-1">Choose your approach</p>
             </div>
             <div className="space-y-3">
               {renovationTypes.map((type) => (
@@ -470,7 +433,11 @@ const OnboardingPage = () => {
                       ? "border-budget-accent bg-budget-accent/10"
                       : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950"
                   } flex items-center gap-3 cursor-pointer transition-all hover:border-budget-accent/50`}
-                  onClick={() => setUserData({ ...userData, renovationType: type.id })}
+                  onClick={() => setUserData({
+                    ...userData,
+                    renovationType: type.id,
+                    budget: RENOVATION_BUDGET_MAP[type.id] || "500",
+                  })}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     userData.renovationType === type.id ? "bg-budget-accent text-white" : "bg-gray-100 dark:bg-gray-800"
@@ -492,7 +459,7 @@ const OnboardingPage = () => {
           </div>
         )}
 
-        {currentStep === 6 && (
+        {currentStep === 5 && (
           <div className="space-y-5 animate-fade-in">
             <div>
               <h2 className="text-xl font-semibold">Any specific requests?</h2>
