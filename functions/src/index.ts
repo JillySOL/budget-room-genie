@@ -16,7 +16,7 @@ import sharp from 'sharp';
 
 import { getNanoBananaApiKey, generateImageWithNanoBanana } from './services/nanobanana';
 import { canUserGenerateDesign, getUserSubscription, subscriptionPlans, SubscriptionPlanType } from './services/subscriptions';
-import { generateDIYSuggestionsWithAI } from './services/openai';
+import { generateDIYSuggestionsWithAI, generateDIYSuggestionsFromImages } from './services/openai';
 import {
     createCheckoutSession,
     createPortalSession,
@@ -400,41 +400,17 @@ export const generateRenovationSuggestions = onDocumentCreated(
         const isChatIteration = !!chatPrompt;
 
         // --- Update Firestore: Processing Started ---
-        // For chat iterations, suggestions are pre-copied from the parent — skip regeneration
-        if (!isChatIteration) {
-            const staticResult = generateSuggestionsByRoomType(roomType, budget, style, renovationType);
-            await projectRef.update({
-                aiStatus: "processing",
-                aiSuggestions: staticResult.suggestions || [],
-                aiTotalEstimatedCost: staticResult.totalEstimatedCost || 0,
-                aiEstimatedValueAdded: staticResult.estimatedValueAdded || 0,
-                aiAfterImageDescription: staticResult.afterImageDescription || "",
-                aiError: null,
-                aiProcessedAt: FieldValue.serverTimestamp(),
-            });
-            logger.info("Updated Firestore: processing started (static suggestions written).");
-
-            // --- Generate AI suggestions with GPT-4o (overwrites static fallback) ---
-            try {
-                const aiResult = await generateDIYSuggestionsWithAI(roomType, budget, style, renovationType);
-                await projectRef.update({
-                    aiSuggestions: aiResult.suggestions,
-                    aiTotalEstimatedCost: aiResult.totalEstimatedCost,
-                    aiEstimatedValueAdded: aiResult.estimatedValueAdded,
-                });
-                logger.info(`Updated Firestore with ${aiResult.suggestions.length} AI-generated suggestions.`);
-            } catch (aiSuggestionsError: unknown) {
-                const err = aiSuggestionsError as Error;
-                logger.warn(`AI suggestion generation failed, keeping static fallback. Error: ${err?.message}`);
-            }
-        } else {
-            // Chat iteration — just mark processing, keep pre-copied suggestions
-            await projectRef.update({
-                aiStatus: "processing",
-                aiError: null,
-                aiProcessedAt: FieldValue.serverTimestamp(),
-            });
+        // Suggestions are now generated AFTER the image using Vision API (so they match what was actually produced).
+        // We just mark processing here and write everything in the final update.
+        await projectRef.update({
+            aiStatus: "processing",
+            aiError: null,
+            aiProcessedAt: FieldValue.serverTimestamp(),
+        });
+        if (isChatIteration) {
             logger.info(`Chat iteration detected. Prompt: "${chatPrompt}"`);
+        } else {
+            logger.info("Processing started — suggestions will be generated after image is ready.");
         }
 
         // --- Image Generation ---
@@ -460,9 +436,9 @@ STRICT RULES:
             // Full renovation prompt
             const budgetNum = parseInt(budget, 10) || 500;
             const renovationScopeMap: Record<string, string> = {
-                budget: `BUDGET FLIP (under $${budgetNum}): Make only affordable, high-impact cosmetic changes. This means: fresh paint on walls, swap soft furnishings (cushions, curtains, rugs), update small décor items and accessories, add or rearrange plants. Do NOT change flooring, cabinetry, appliances, or any fixed elements. Keep all furniture in place.`,
-                full: `FULL RENOVATION (up to $${budgetNum}): Transform the entire room. Replace flooring, update or repaint cabinetry, swap all furniture, install new light fixtures, update window treatments, add architectural features if appropriate. Make it look like a completely professional renovation.`,
-                visual: `VISUALIZE (dream scenario): Show the most beautiful, aspirational version of this room in the ${style} style with no budget constraints. Replace everything that would benefit from it — flooring, furniture, lighting, fixtures, décor — while keeping the room's footprint and architectural structure.`,
+                budget: `STRICT COSMETIC FLIP — total budget $${budgetNum} AUD maximum. You MUST preserve every fixed element exactly as it is: all tiles, flooring, bath, shower recess, vanity unit, toilet, cabinetry, countertops, and all plumbing fixtures stay completely unchanged. The only permitted changes are: (1) wall paint colour, (2) towels, bath mat, and soft accessories, (3) the mirror or a small framed print on the wall, (4) the light fitting or globe, (5) small decorative items on shelves. Do NOT add new tiles, do NOT replace the vanity, do NOT alter the shower or bath surround in any way. The renovation must look achievable for under $${budgetNum}.`,
+                full: `FULL RENOVATION (up to $${budgetNum} AUD): Transform the entire room. Replace flooring, update or repaint cabinetry, swap all furniture, install new light fixtures, update window treatments, add architectural features if appropriate. Make it look like a completely professional renovation.`,
+                visual: `DREAM VISUALIZATION (aspirational, no budget limit): Show the most beautiful, aspirational version of this room in the ${style} style. Replace everything that would benefit from it — flooring, furniture, lighting, fixtures, décor — while keeping the room's footprint and architectural structure.`,
             };
             const renovationScope = renovationScopeMap[renovationType] || renovationScopeMap["budget"];
 
@@ -531,22 +507,64 @@ The output must look like a professional real estate or interior design photogra
         logger.info(`Converted base64 to buffer: ${finalImageBuffer.length} bytes`);
         const finalImageUrl = await uploadGeneratedImageToStorage(projectId, finalImageBuffer);
 
+        // --- Generate DIY suggestions using Vision (before + after images) ---
+        // This runs AFTER the image is ready so suggestions always match what was produced.
+        let suggestionUpdate: Record<string, unknown> = {};
+        if (!isChatIteration) {
+            try {
+                logger.info("Generating Vision-based DIY suggestions from before/after images...");
+                const visionResult = await generateDIYSuggestionsFromImages(
+                    imageUrl,        // before
+                    finalImageUrl,   // after
+                    roomType,
+                    budget,
+                    renovationType,
+                    style
+                );
+                suggestionUpdate = {
+                    aiSuggestions: visionResult.suggestions,
+                    aiTotalEstimatedCost: visionResult.totalEstimatedCost,
+                    aiEstimatedValueAdded: visionResult.estimatedValueAdded,
+                };
+                logger.info(`✅ Vision suggestions: ${visionResult.suggestions.length} items, total $${visionResult.totalEstimatedCost}`);
+            } catch (visionError: unknown) {
+                const ve = visionError as Error;
+                logger.warn(`Vision suggestion failed (${ve?.message}), falling back to text-only GPT-4o...`);
+                try {
+                    const fallback = await generateDIYSuggestionsWithAI(roomType, budget, style, renovationType);
+                    suggestionUpdate = {
+                        aiSuggestions: fallback.suggestions,
+                        aiTotalEstimatedCost: fallback.totalEstimatedCost,
+                        aiEstimatedValueAdded: fallback.estimatedValueAdded,
+                    };
+                    logger.info(`Fallback suggestions: ${fallback.suggestions.length} items`);
+                } catch (fallbackError: unknown) {
+                    const fe = fallbackError as Error;
+                    logger.warn(`Fallback suggestion also failed: ${fe?.message}. Suggestions will be empty.`);
+                    // Use static lookup as last resort
+                    const staticResult = generateSuggestionsByRoomType(roomType, budget, style, renovationType);
+                    suggestionUpdate = {
+                        aiSuggestions: staticResult.suggestions,
+                        aiTotalEstimatedCost: staticResult.totalEstimatedCost,
+                        aiEstimatedValueAdded: staticResult.estimatedValueAdded,
+                    };
+                }
+            }
+        }
+
         // --- Final Firestore Update: Success ---
-        // Log the URLs before saving to verify they're different
-        logger.info(`About to save aiGeneratedImageURL to Firestore:`, {
+        logger.info(`Saving completed project to Firestore`, {
             projectId,
-            uploadedImageURL: projectData.uploadedImageURL,
-            aiGeneratedImageURL: finalImageUrl,
-            urlsAreDifferent: projectData.uploadedImageURL !== finalImageUrl,
             finalImageUrlLength: finalImageUrl.length,
-            uploadedImageUrlLength: projectData.uploadedImageURL?.length || 0
+            hasSuggestions: Object.keys(suggestionUpdate).length > 0,
         });
-        
+
         await projectRef.update({
             aiStatus: "completed",
             aiGeneratedImageURL: finalImageUrl,
             aiError: null,
-            aiProcessedAt: FieldValue.serverTimestamp(), // Update timestamp again
+            aiProcessedAt: FieldValue.serverTimestamp(),
+            ...suggestionUpdate,
         });
         
         // Verify the update was successful

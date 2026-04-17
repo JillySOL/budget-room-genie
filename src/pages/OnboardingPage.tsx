@@ -308,6 +308,13 @@ const OnboardingPage = () => {
               <p className="text-sm text-muted-foreground mt-1">Upload a new photo or select one from your gallery.</p>
             </div>
 
+            <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 p-3.5">
+              <Camera className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+                <strong>Best results:</strong> Step back and capture the <strong>entire room</strong> in one wide shot. Close-up or partial photos limit what the AI can redesign — the more room context, the better the result.
+              </p>
+            </div>
+
             <Input
               id="file-upload"
               type="file"

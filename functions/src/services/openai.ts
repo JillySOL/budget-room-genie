@@ -117,6 +117,85 @@ Rules:
   }
 }
 
+/**
+ * Generate DIY suggestions by comparing before + after images using GPT-4o Vision.
+ * This ensures the suggestions describe what was ACTUALLY changed in the generated image,
+ * not a generic list based on room type alone.
+ */
+export async function generateDIYSuggestionsFromImages(
+  beforeImageUrl: string,
+  afterImageUrl: string,
+  roomType: string,
+  budget: string,
+  renovationType: string,
+  style: string
+): Promise<GeneratedSuggestions> {
+  const budgetNum = parseInt(budget, 10) || 500;
+
+  const renovationLabel: Record<string, string> = {
+    budget: `Budget Flip (cosmetic only, ~$${budgetNum} AUD)`,
+    full: `Full Renovation (~$${budgetNum} AUD)`,
+    visual: `Dream Visualization (aspirational, no budget limit)`,
+  };
+  const label = renovationLabel[renovationType] || renovationLabel["budget"];
+
+  const systemPrompt = `You are a professional interior designer and licensed contractor in Australia. You compare before and after renovation photos and produce accurate, specific DIY cost breakdowns in AUD. You always respond with valid JSON only — no markdown, no commentary.`;
+
+  const userPrompt = `You are given a BEFORE photo and an AFTER photo of a ${roomType} (${label}, ${style} style).
+
+Carefully compare the two images. Identify every visual change — what was painted, replaced, added, or removed.
+
+For each visible change, provide a realistic DIY cost estimate in Australian dollars (AUD), including materials and basic labour.
+
+Return a JSON object with this exact structure:
+{
+  "suggestions": [
+    { "item": "...", "description": "...", "cost": 0 }
+  ],
+  "totalEstimatedCost": 0,
+  "estimatedValueAdded": 0
+}
+
+Rules:
+- 3 to 5 suggestions — each one must correspond to something actually visible in the AFTER image
+- If the renovation looks more extensive than the budget tier, list what was done accurately — do not invent cheaper alternatives
+- Descriptions: 1–2 sentences, specific and actionable (e.g. "Paint walls in a warm white using a low-VOC interior paint" not "refresh the room")
+- Costs: realistic Australian DIY prices (materials + entry-level labour if needed)
+- totalEstimatedCost: sum of individual costs
+- estimatedValueAdded: realistic property value increase (2x–4x total cost for cosmetic work, up to 5x for full renovations)
+- Do not invent changes that are NOT visible in the after image`;
+
+  const openai = await getOpenAIClient();
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: userPrompt },
+          { type: "image_url", image_url: { url: beforeImageUrl, detail: "low" } },
+          { type: "image_url", image_url: { url: afterImageUrl, detail: "low" } },
+        ],
+      },
+    ],
+    temperature: 0.3,
+    max_tokens: 900,
+    response_format: { type: "json_object" },
+  });
+
+  const raw = response.choices[0]?.message?.content?.trim() || "{}";
+  const parsed = JSON.parse(raw) as GeneratedSuggestions;
+
+  if (!parsed.suggestions || !Array.isArray(parsed.suggestions) || parsed.suggestions.length === 0) {
+    throw new Error("Vision API returned invalid suggestions structure");
+  }
+
+  logger.info(`Vision-based suggestions generated: ${parsed.suggestions.length} items, total $${parsed.totalEstimatedCost}`);
+  return parsed;
+}
+
 const enhancedDescriptionsCache = new Map<string, string>();
 
 export async function enhanceDIYDescription(
