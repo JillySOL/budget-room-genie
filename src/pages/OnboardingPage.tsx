@@ -189,10 +189,20 @@ const OnboardingPage = () => {
       const checkFn = httpsCallable<void, { canGenerate: boolean }>(functions, "stripeCheckCanGenerate");
       const usageResult = await checkFn();
       if (!usageResult.data.canGenerate) {
+        // Save completed project data so SuccessPage can auto-submit after upgrade
+        localStorage.setItem("renomate_pending_project", JSON.stringify({
+          uploadedImageURL: finalImageURL,
+          imageAspectRatio,
+          ...userData,
+          projectName: `${userData.style || 'My'} ${userData.roomType || 'Room'} Project`,
+        }));
         setShowPaywall(true);
         setIsUploading(false);
         return;
       }
+
+      // Clear any stale pending project (user was already Pro)
+      localStorage.removeItem("renomate_pending_project");
 
       sonnerToast.info("Saving project details...");
       const projectData = {
